@@ -48,13 +48,6 @@
    :string '()
    :input {}})
 
-(defn abs ;;REMOVE
-  "Absolute value."
-  [x]
-  (if (neg? x)
-    (- x)
-    x))
-
 (defn push-to-stack
   "Pushes item onto stack in state, returning the resulting state."
   [state stack item]
