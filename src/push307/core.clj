@@ -51,7 +51,8 @@
 (defn push-to-stack
   "Pushes item onto stack in state, returning the resulting state."
   [state stack item]
-  :STUB
+  (let [newstack (conj (get state stack) item)]
+  (assoc state stack newstack))
   )
 
 (defn pop-stack
@@ -63,7 +64,9 @@
 (defn peek-stack
   "Returns top item on a stack. If stack is empty, returns :no-stack-item"
   [state stack]
-  :STUB
+  (if (= (empty-stack? state stack) true)
+    :no-stack-item
+    (first (get state  stack)))
   )
 
 (defn empty-stack?
