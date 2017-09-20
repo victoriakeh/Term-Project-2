@@ -57,7 +57,7 @@
 (defn pop-stack
   "Removes top item of stack, returning the resulting state."
   [state stack]
-  :STUB
+  (assoc state stack (rest (get state stack)))
   )
 
 (defn peek-stack
@@ -69,7 +69,7 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  :STUB
+  (empty? (get state stack))
   )
 
 (defn get-args-from-stacks
