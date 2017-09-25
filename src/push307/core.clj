@@ -7,7 +7,7 @@
 ; An example Push state
 (def example-push-state
   {:exec '(integer_+ integer_-)
-   :integer '(1 2 3 4 5 6 7)
+   :integer '(0 2 3 4 5 6 7)
    :string '("abc" "def")
    :input {:in1 4 :in2 6}})
 
@@ -66,14 +66,12 @@
   [state stack]
   (if (= (empty-stack? state stack) true)
     :no-stack-item
-    (first (get state  stack)))
-  )
+    (first (get state  stack))))
 
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  (empty? (get state stack))
-  )
+  (empty? (get state stack)))
 
 (defn get-args-from-stacks
   "Takes a state and a list of stacks to take args from. If there are enough args
@@ -114,7 +112,8 @@
   "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map."
   [state]
-  :STUB
+  (println
+   (assoc state :exec (conj (get state :exec) (get (get state :input) :in1))))
   )
 
 (defn integer_+
@@ -153,7 +152,11 @@
   In other words, it acts like integer division most of the time, but if the
   denominator is 0, it returns the numerator, to avoid divide-by-zero errors."
   [state]
-  :STUB
+  (let [numerator (second (get state :integer))
+        denominator (first (get state :integer))]
+    (if (= denominator 0)
+      (pop-stack state :integer)
+      (make-push-instruction state / [:integer :integer] :integer)))
   )
 
 
