@@ -82,10 +82,10 @@
   the stacks. If there aren't enough args on the stacks, returns :not-enough-args."
   [state stacks]
   (loop [state state
-         stacks stacks
+         stacks (reverse stacks)
          args '()]
     (if (empty? stacks)
-      {:state state :args (reverse args)}
+      {:state state :args  args}
       (let [stack (first stacks)]
         (if (empty-stack? state stack)
           :not-enough-args
@@ -102,7 +102,7 @@
   (let [args-pop-result (get-args-from-stacks state arg-stacks)]
     (if (= args-pop-result :not-enough-args)
       state
-      (let [result (apply function (reverse (:args args-pop-result)))
+      (let [result (apply function (:args args-pop-result))
             new-state (:state args-pop-result)]
         (push-to-stack new-state return-stack result)))))
 
