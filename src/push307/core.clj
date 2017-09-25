@@ -72,8 +72,7 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  (empty? (get state stack))
-  )
+  (empty? (get state stack)))
 
 (defn get-args-from-stacks
   "Takes a state and a list of stacks to take args from. If there are enough args
@@ -85,7 +84,7 @@
          stacks (reverse stacks)
          args '()]
     (if (empty? stacks)
-      {:state state :args  args}
+      {:state state :args args}
       (let [stack (first stacks)]
         (if (empty-stack? state stack)
           :not-enough-args
@@ -139,14 +138,13 @@
   "Subtracts the top two integers and leaves result on the integer stack.
   Note: the second integer on the stack should be subtracted from the top integer."
   [state]
-  :STUB
-  )
+  (make-push-instruction state -' [:integer :integer] :integer))
+ 
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
   [state]
-  :STUB
-  )
+  (make-push-instruction state *' [:integer :integer] :integer))
 
 (defn integer_%
   "This instruction implements 'protected division'.
