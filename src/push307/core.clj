@@ -6,7 +6,7 @@
 
 ; An example Push state
 (def example-push-state
-  {:exec '(integer_+ integer_-)
+  {:exec '("hello"  integer_+ integer_-)
    :integer '(0 2 3 4 5 6 7)
    :string '("abc" "def")
    :input {:in1 4 :in2 6}})
@@ -52,14 +52,17 @@
   "Pushes item onto stack in state, returning the resulting state."
   [state stack item]
   (let [newstack (conj (get state stack) item)]
-  (assoc state stack newstack))
-  )
+  (assoc state stack newstack)))
 
 (defn pop-stack
   "Removes top item of stack, returning the resulting state."
   [state stack]
-  (assoc state stack (rest (get state stack)))
-  )
+  (assoc state stack (rest (get state stack))))
+
+(defn empty-stack?
+  "Returns true if the stack is empty in state."
+  [state stack]
+  (empty? (get state stack)))
 
 (defn peek-stack
   "Returns top item on a stack. If stack is empty, returns :no-stack-item"
@@ -68,10 +71,6 @@
     :no-stack-item
     (first (get state  stack))))
 
-(defn empty-stack?
-  "Returns true if the stack is empty in state."
-  [state stack]
-  (empty? (get state stack)))
 
 (defn get-args-from-stacks
   "Takes a state and a list of stacks to take args from. If there are enough args
@@ -168,8 +167,15 @@
   or if the next element is a literal, pushes it onto the correct stack.
   Returns the new Push state."
   [push-state]
-  :STUB
-  )
+  (let [curr (eval (first (get push-state :exec)))]
+    (println curr)
+    (cond (integer? curr) (push-to-stack (pop-stack push-state :exec)
+                                         :integer
+                                         curr)
+          (string? curr) (push-to-stack (pop-stack push-state :exec)
+                                        :string
+                                        curr)
+          :else (curr (pop-stack push-state :exec)))))
 
 (defn interpret-push-program
   "Runs the given program starting with the stacks in start-state. Continues
