@@ -195,7 +195,16 @@
   "Creates and returns a new program. Takes a list of instructions and
   a maximum initial program size."
   [instructions max-initial-program-size]
-  :STUB
+  (let [newprogram '()
+        program-size (rand-int (+ max-initial-program-size 1))]
+    (loop [add_instructions program-size
+           newprogram newprogram
+           instructions instructions]
+      (if (= add_instructions 0)
+        newprogram
+        (recur (- add_instructions 1)
+               (conj newprogram (rand-nth instructions))
+               instructions))))
   )
 
 (defn tournament-selection
