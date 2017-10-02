@@ -111,9 +111,7 @@
   "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map."
   [state]
-  (println
-   (assoc state :exec (conj (get state :exec) (get (get state :input) :in1))))
-  )
+  (assoc state :exec (conj (get state :exec) (get (get state :input) :in1))))
 
 (defn integer_+
   "Adds the top two integers and leaves result on the integer stack.
@@ -177,13 +175,17 @@
                                         curr)
           :else (curr (pop-stack push-state :exec)))))
 
+
+             
 (defn interpret-push-program
   "Runs the given program starting with the stacks in start-state. Continues
   until the exec stack is empty. Returns the state of the stacks after the
   program finishes executing."
   [program start-state]
-  :STUB
-  )
+  (loop [curr-state (assoc start-state :exec program)]
+    (if (empty-stack? curr-state :exec)
+      curr-state
+      (recur (interpret-one-step curr-state)))))
 
 
 ;;;;;;;;;;
