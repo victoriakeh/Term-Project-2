@@ -23,6 +23,11 @@
    :errors [8 7 6 5 4 3 2 1 0 1]
    :total-error 37})
 
+(def example-individual2
+  {:program '(3 5 integer_* "hello" 4 "world" integer_-)
+   :errors [8 7 6 5 4 3 2 1 0 1]
+   :total-error 39})
+
 
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
@@ -212,8 +217,9 @@
   individual will be a parent in the next generation. Can use a fixed
   tournament size."
   [population]
-  :STUB
-  )
+  (let [selected-individuals (into [] (take 6 (repeatedly #(rand-nth population))))]
+    (apply min-key :total-error selected-individuals)
+  ))
 
 (defn crossover
   "Crosses over two programs (note: not individuals) using uniform crossover.
@@ -241,7 +247,12 @@
   to use probabilistically. Gives 50% chance to crossover,
   25% to uniform-addition, and 25% to uniform-deletion."
   [population]
-  :STUB
+  (let [prob-genetic-op (+ (rand 100) 1)]
+    (if (<= prob-genetic-op 50)
+      (crossover (tournament-selection population) (tournament-selection population))
+      (if (and (> prob-genetic-op 50) (<= prob-genetic-op 75))
+        (uniform-addition (tournament-selection population))
+        (uniform-deletion (tournament-selection population)))))
   )
 
 (defn report
