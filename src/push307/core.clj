@@ -269,7 +269,14 @@ Best total error: 727
 Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   "
   [population generation]
-  :STUB
+  (println "-------------------------------------------------------")
+  (println "               Report for Generation" generation)
+  (println "-------------------------------------------------------")
+  (let [best-program (apply min-key :total-error (into [] population))]
+    (println "Best program:" (get best-program :program))
+    (println "Best program size:" (count (get best-program :program)))
+    (println "Best total error:" (get best-program :total-error))
+    (println "Best errors:" (get best-program :errors)))
   )
 
 (defn push-gp
