@@ -225,21 +225,68 @@
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
   [prog-a prog-b]
-  :STUB
-  )
+    ; define the first list as A and the second as B, and a new child
+  (loop [A prog-a
+         B prog-b
+         child '()]
+
+    ; if both lists are empty, then return, otherwise continue 
+    (if (and (empty? A) (empty? B))
+
+      ; if both are empty, filter out any extra instructions which
+      ; will be nil because this only happens when one list is longer
+      ; than the other and the shorter list's nonexistent instruction
+      ; is chosen (nil)
+      (filter #(not= % nil) (reverse child))
+
+      ; when we call our function recursively, continue with all but
+      ; the current instruction from A and B
+      (recur (rest A)
+             (rest B)
+
+             ; there is a 50-50 shot where either we add the instruct-
+             ; ion from A or B
+             (if (= (rand-int 2) 0)
+               (conj child (first A))
+               (conj child (first B)))))))
 
 (defn uniform-addition
   "Randomly adds new instructions before every instruction (and at the end of
   the program) with some probability. Returns child program."
   [prog]
-  :STUB
-  )
+    ; define program, the first instruction in the program as curr
+  ; the instructions list, and the new program
+  (loop [prog prog
+         curr (first prog)
+         new-prog '()]
+
+    ; if the old program is empty we are done
+    (if (empty? prog)
+
+      ; then, if by a 5% chance we should add one to the end of the
+      ; new program we do that otherwise we return the new program
+      ; note; we reverse it because we use conj so it's backwards
+      (if (= (rand-int 20) 0)
+        (reverse (conj new-prog (rand-nth instructions)))
+        (reverse new-prog))
+
+      ; call our function with the current instruction removed, and a
+      ; new current defined, and the instructions list
+      (recur (rest prog)
+             (first (rest prog))
+             ; by our 5% chance we either add an instructio before
+             ; and then the current instructio or just the current one
+             (if (= (rand-int 20) 0)
+               (conj (conj new-prog
+                           (rand-nth instructions)) curr)
+               (conj new-prog curr))))))
 
 (defn uniform-deletion
   "Randomly deletes instructions from program at some rate. Returns child program."
   [prog]
-  :STUB
-  )
+    ; each element of the list has a 95% chance of appearing in the
+  ; new list (same as 5% of not appearing)
+  (random-sample 0.95 prog))
 
 (defn select-and-vary
   "Selects parent(s) from population and varies them, returning
