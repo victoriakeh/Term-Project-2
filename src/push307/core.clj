@@ -171,7 +171,6 @@
   Returns the new Push state."
   [push-state]
   (let [curr (eval (first (get push-state :exec)))]
-    (println curr)
     (cond (integer? curr) (push-to-stack (pop-stack push-state :exec)
                                          :integer
                                          curr)
@@ -355,8 +354,22 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   "Target function: f(x) = x^3 + x + 3
   Should literally compute this mathematical function."
   [x]
-  :STUB
-  )
+  (+ (* x x x) x 3)))
+
+(defn absolute-value
+  [number]
+  (if (< number 0)
+    (* -1 number)
+    number))
+
+(defn get-error
+  [program input]
+  (absolute-value (- (target-function input)
+                     (first (get (interpret-push-program program
+                                             (assoc empty-push-state
+                                                    :input {:in1 input}))
+                          :integer)))))
+
 
 (defn regression-error-function
   "Takes an individual and evaluates it on some test cases. For each test case,
@@ -369,9 +382,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   Note: You must consider what to do if the program doesn't leave anything
   on the integer stack."
   [individual]
-  :STUB
-  )
-
+  (loop [curr-input -10
+         errors []]
+    (if (= curr-input 11)
+      {:program (get individual :program)
+       :errors errors
+       :total-error (apply + errors)}
+      (recur (+ curr-input 1)
+             (conj errors (get-error (get individual :program)
+                                     curr-input))))))
+         
 
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
