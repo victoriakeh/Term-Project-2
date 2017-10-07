@@ -386,7 +386,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   on the integer stack."
   [individual]
   (loop [curr-input -10
-         errors []]
+         errors (get individual :errors)]
     (if (= curr-input 11)
       {:program (get individual :program)
        :errors errors
