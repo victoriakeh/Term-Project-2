@@ -296,10 +296,10 @@
   [population]
   (let [prob-genetic-op (+ (rand 100) 1)]
     (if (<= prob-genetic-op 50)
-      (crossover (tournament-selection population) (tournament-selection population))
+      (make-individual-from-program (crossover (get :program (tournament-selection population)) (get :program (tournament-selection population))))
       (if (and (> prob-genetic-op 50) (<= prob-genetic-op 75))
-        (uniform-addition (tournament-selection population))
-        (uniform-deletion (tournament-selection population)))))
+        (make-individual-from-program (uniform-addition (get :program (tournament-selection population))))
+        (make-individual-from-program (uniform-deletion (get :program (tournament-selection population)))))))
   )
 
 (defn report
@@ -326,6 +326,22 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println "Best errors:" (get best-program :errors)))
   )
 
+(defn make-individual-from-program
+  [program]
+  (let [individual {:program program
+                    :errors []
+                    :total-error 0}]
+    (regression-error-function individual)))
+
+(defn find-successful-program
+  [population]
+  (loop [population population]
+    (if (= (get :total-error (first (population))) 0)
+      :SUCCESS
+      (if (= (rest population) nil)
+        :CONTINUE-SEARCHING))
+    (recur (rest population))))
+
 (defn push-gp
   "Main GP loop. Initializes the population, and then repeatedly
   generates and evaluates new populations. Stops if it finds an
@@ -342,9 +358,15 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - instructions (a list of instructions)
    - max-initial-program-size (max size of randomly generated programs)"
   [{:keys [population-size max-generations error-function instructions max-initial-program-size]}]
-  :STUB
-  )
-
+  ;(loop [pop-size population-size
+         ;generations-left max-generations]
+  (let [original-population (take population-size (repeatedly #(make-individual-from-program (make-random-push-program instructions max-initial-program-size))))]
+    (loop [curr-population original-population
+           generations-left max-generations]
+        (cond (= (find-successful-program curr-population) :SUCCESS) :SUCCESS
+              (= generations-left 0) nil
+              :else (recur (take population-size (repeatedly #(select-and-vary curr-population)))
+                           (- generations-left 1))))))
 
 ;;;;;;;;;;
 ;; The functions below are specific to a particular problem.
