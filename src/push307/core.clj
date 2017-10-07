@@ -20,8 +20,7 @@
 ; the program, and a total error
 (def example-individual
   {:program '(3 5 integer_* "hello" 4 "world" integer_-)
-   :errors [8 7 6 5 4 3 2 1 0 1]
-   :total-error 37})
+})
 
 (def example-individual2
   {:program '(3 5 integer_* "hello" 4 "world" integer_-)
@@ -354,7 +353,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   "Target function: f(x) = x^3 + x + 3
   Should literally compute this mathematical function."
   [x]
-  (+ (* x x x) x 3)))
+  (+ (* x x x) x 3))
 
 (defn absolute-value
   [number]
@@ -364,12 +363,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (defn get-error
   [program input]
-  (absolute-value (- (target-function input)
-                     (first (get (interpret-push-program program
+  (let [target-value (target-function input)
+        program-value (first (get (interpret-push-program program
                                              (assoc empty-push-state
                                                     :input {:in1 input}))
-                          :integer)))))
-
+                                  :integer))]
+    (if (nil? program-value)
+      100
+      (absolute-value (- target-value  program-value)))))
+                     
+                          
 
 (defn regression-error-function
   "Takes an individual and evaluates it on some test cases. For each test case,
