@@ -223,6 +223,8 @@
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
   [prog-a prog-b]
+;  (println prog-a)
+;  (println prog-b)
     ; define the first list as A and the second as B, and a new child
   (loop [A prog-a
          B prog-b
@@ -285,6 +287,61 @@
     ; each element of the list has a 95% chance of appearing in the
   ; new list (same as 5% of not appearing)
   (random-sample 0.95 prog))
+;;;;;;;;;;
+;; The functions below are specific to a particular problem.
+;; A different problem would require replacing these functions.
+;; Problem: f(x) = x^3 + x + 3
+
+(defn target-function
+  "Target function: f(x) = x^3 + x + 3
+  Should literally compute this mathematical function."
+  [x]
+  (+ (* x x x) x 3))
+
+(defn absolute-value
+  [number]
+  (if (< number 0)
+    (* -1 number)
+    number))
+
+(defn get-error
+  [program input]
+  (let [target-value (target-function input)
+        program-value (first (get (interpret-push-program program
+                                             (assoc empty-push-state
+                                                    :input {:in1 input}))
+                                  :integer))]
+    (if (nil? program-value)
+      10000
+      (absolute-value (- target-value  program-value)))))      
+
+(defn regression-error-function
+  "Takes an individual and evaluates it on some test cases. For each test case,
+  runs program with the input set to :in1 in the :input map part of the Push state.
+  Then, the output is the integer on top of the integer stack in the Push state
+  returned by the interpreter. Computes each error by comparing output of
+  the program to the correct output.
+  Returns the individual with :errors set to the list of errors on each case,
+  and :total-error set to the sum of the errors.
+  Note: You must consider what to do if the program doesn't leave anything
+  on the integer stack."
+  [individual]
+  (loop [curr-input -10
+         errors (get individual :errors)]
+    (if (= curr-input 11)
+      {:program (get individual :program)
+       :errors errors
+       :total-error (apply + errors)}
+      (recur (+ curr-input 1)
+             (conj errors (get-error (get individual :program)
+                                     curr-input))))))
+
+(defn make-individual-from-program
+  [program]
+  (let [individual {:program program
+                    :errors []
+                    :total-error 0}]
+    (regression-error-function individual)))
 
 (defn select-and-vary
   "Selects parent(s) from population and varies them, returning
@@ -293,11 +350,15 @@
   25% to uniform-addition, and 25% to uniform-deletion."
   [population]
   (let [prob-genetic-op (+ (rand 100) 1)]
+   ; (println "IN SELECT AND VARY")
+   ; (println (make-individual-from-program (crossover (get :program (tournament-selection population)) (get :program (tournament-selection population)))))
+   ; (println (make-individual-from-program (uniform-addition (get :program (tournament-selection population)))))
+  ;  (println (make-individual-from-program (uniform-deletion (get :program (tournament-selection population)))))
     (if (<= prob-genetic-op 50)
-      (crossover (tournament-selection population) (tournament-selection population))
+      (make-individual-from-program (crossover (get (tournament-selection population) :program) (get (tournament-selection population) :program)))
       (if (and (> prob-genetic-op 50) (<= prob-genetic-op 75))
-        (uniform-addition (tournament-selection population))
-        (uniform-deletion (tournament-selection population)))))
+         (make-individual-from-program (uniform-addition (get (tournament-selection population) :program)))
+        (make-individual-from-program (uniform-deletion (get (tournament-selection population) :program))))))
   )
 
 (defn report
@@ -324,6 +385,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println "Best errors:" (get best-program :errors)))
   )
 
+(defn find-successful-program
+  [population]
+  (if (= (get (apply min-key :total-error population) :total-error) 0)
+    :SUCCESS))
+
 (defn push-gp
   "Main GP loop. Initializes the population, and then repeatedly
   generates and evaluates new populations. Stops if it finds an
@@ -340,61 +406,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - instructions (a list of instructions)
    - max-initial-program-size (max size of randomly generated programs)"
   [{:keys [population-size max-generations error-function instructions max-initial-program-size]}]
-  :STUB
-  )
-
-
-;;;;;;;;;;
-;; The functions below are specific to a particular problem.
-;; A different problem would require replacing these functions.
-;; Problem: f(x) = x^3 + x + 3
-
-(defn target-function
-  "Target function: f(x) = x^3 + x + 3
-  Should literally compute this mathematical function."
-  [x]
-  (+ (* x x x) x 3))
-
-(defn absolute-value
-  [number]
-  (if (< number 0)
-    (* -1 number)
-    number))
-
-(defn get-error
-  [program input]
-  (let [target-value (target-function input)
-        program-value (first (get (interpret-push-program program
-                                             (assoc empty-push-state
-                                                    :input {:in1 input}))
-                                  :integer))]
-    (if (nil? program-value)
-      100
-      (absolute-value (- target-value  program-value)))))
-                     
-                          
-
-(defn regression-error-function
-  "Takes an individual and evaluates it on some test cases. For each test case,
-  runs program with the input set to :in1 in the :input map part of the Push state.
-  Then, the output is the integer on top of the integer stack in the Push state
-  returned by the interpreter. Computes each error by comparing output of
-  the program to the correct output.
-  Returns the individual with :errors set to the list of errors on each case,
-  and :total-error set to the sum of the errors.
-  Note: You must consider what to do if the program doesn't leave anything
-  on the integer stack."
-  [individual]
-  (loop [curr-input -10
-         errors (get individual :errors)]
-    (if (= curr-input 11)
-      {:program (get individual :program)
-       :errors errors
-       :total-error (apply + errors)}
-      (recur (+ curr-input 1)
-             (conj errors (get-error (get individual :program)
-                                     curr-input))))))
-         
+  ;(loop [pop-size population-size
+         ;generations-left max-generations]
+  (let [original-population (take population-size (repeatedly #(make-individual-from-program (make-random-push-program instructions max-initial-program-size))))]
+    (loop [curr-population original-population
+           curr-generation 0]
+      (report curr-population curr-generation)
+      (cond (= (find-successful-program curr-population) :SUCCESS) :SUCCESS
+              (= curr-generation max-generations) nil
+              :else (recur (take population-size (repeatedly #(select-and-vary curr-population)))
+                           (+ curr-generation 1))))))
 
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
