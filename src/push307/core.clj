@@ -20,8 +20,7 @@
 ; the program, and a total error
 (def example-individual
   {:program '(3 5 integer_* "hello" 4 "world" integer_-)
-   :errors [8 7 6 5 4 3 2 1 0 1]
-   :total-error 37})
+})
 
 (def example-individual2
   {:program '(3 5 integer_* "hello" 4 "world" integer_-)
@@ -171,7 +170,6 @@
   Returns the new Push state."
   [push-state]
   (let [curr (eval (first (get push-state :exec)))]
-    (println curr)
     (cond (integer? curr) (push-to-stack (pop-stack push-state :exec)
                                          :integer
                                          curr)
@@ -377,8 +375,26 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   "Target function: f(x) = x^3 + x + 3
   Should literally compute this mathematical function."
   [x]
-  :STUB
-  )
+  (+ (* x x x) x 3))
+
+(defn absolute-value
+  [number]
+  (if (< number 0)
+    (* -1 number)
+    number))
+
+(defn get-error
+  [program input]
+  (let [target-value (target-function input)
+        program-value (first (get (interpret-push-program program
+                                             (assoc empty-push-state
+                                                    :input {:in1 input}))
+                                  :integer))]
+    (if (nil? program-value)
+      100
+      (absolute-value (- target-value  program-value)))))
+                     
+                          
 
 (defn regression-error-function
   "Takes an individual and evaluates it on some test cases. For each test case,
@@ -391,9 +407,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   Note: You must consider what to do if the program doesn't leave anything
   on the integer stack."
   [individual]
-  :STUB
-  )
-
+  (loop [curr-input -10
+         errors (get individual :errors)]
+    (if (= curr-input 11)
+      {:program (get individual :program)
+       :errors errors
+       :total-error (apply + errors)}
+      (recur (+ curr-input 1)
+             (conj errors (get-error (get individual :program)
+                                     curr-input))))))
+         
 
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
