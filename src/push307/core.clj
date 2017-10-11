@@ -1,5 +1,6 @@
 ;; Oliver Keh
 ;; Victoria Slack
+;; Term project Part 2
 ;; CPSCI 307 
 
 (ns push307.core
