@@ -1,6 +1,6 @@
 ;; Oliver Keh
 ;; Victoria Slack
-;; CPSCI 307 
+;; CPSCI 307
 
 (ns push307.core
   (:gen-class))
