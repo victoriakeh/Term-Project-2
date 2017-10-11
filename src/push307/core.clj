@@ -1,6 +1,6 @@
 ;; Oliver Keh
 ;; Victoria Slack
-;; Term project Part 2
+;; Term Project Part 2
 ;; CPSCI 307 
 
 (ns push307.core
@@ -27,7 +27,7 @@
 (def empty-push-state
   {:exec '()
    :integer '()
-   :string '()
+   :float '()
    :input {}})
 
 (defn push-to-stack
@@ -36,7 +36,7 @@
   of newstack and associates the new stack with the push state."
   [state stack item]
   (let [newstack (conj (get state stack) item)]
-  (assoc state stack newstack)))
+    (assoc state stack newstack)))
 
 (defn pop-stack
   "Takes a push state and stack name and removes top item of stack,
@@ -150,7 +150,10 @@
   Also pops that element off the exec stack returns the new Push state."
   [push-state]
   (let [curr (eval (first (get push-state :exec)))]
-    (cond (integer? curr) (push-to-stack (pop-stack push-state :exec)
+    (cond (float? curr) (push-to-stack (pop-stack push-state :exec)
+                                       :float
+                                       curr)
+          (integer? curr) (push-to-stack (pop-stack push-state :exec)
                                          :integer
                                          curr)
           (string? curr) (push-to-stack (pop-stack push-state :exec)
@@ -253,11 +256,6 @@
   [prog]
   (random-sample 0.95 prog))
 
-(defn target-function
-  "Target function: f(x) = x^3 + x + 3
-  Takes an input value to the above function and returns f(input)."
-  [x]
-  (+ (* x x x) x 3))
 
 (defn absolute-value
   "Takes a number and checks to see if it is negative (below 0), and if so,
