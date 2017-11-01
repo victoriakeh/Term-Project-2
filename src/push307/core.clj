@@ -5,6 +5,26 @@
 (ns push307.core
   (:gen-class))
 
+
+; An example individual in the population
+; Made of a map containing, at mimimum, a program, the errors for
+; the program, and a total error
+(def example-individual
+  {:program '(3 5 integer_* "hello" 4 "world" integer_-)
+   :errors [8 1 6 5 4 3 2 1 0 1]
+   :total-error 37})
+
+
+; An example individual in the population
+; Made of a map containing, at mimimum, a program, the errors for
+; the program, and a total error
+(def example-individual2
+  {:program '(hello thing exec_do*range "foo" 6 "foobar" integer_*)
+   :errors [1 1 1 1 1 1 1 1 1 1]
+   :total-error 10})
+
+
+
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
@@ -202,6 +222,24 @@
   (let [selected-individuals (into [] (take 6 (repeatedly #(rand-nth population))))]
     (apply min-key :total-error selected-individuals)))
 
+(defn lexicase-selection
+  [population tests]
+  (let [tests-in-random-order (shuffle tests)]
+    (loop [tests-in-random-order tests-in-random-order
+           candidates-left population]
+      (if (= (count tests-in-random-order) 1)
+        (rand-nth candidates-left)
+      (let [best-ind-err (apply min
+                                (map #(nth % (first tests-in-random-order))
+                                     (map #(get % :errors)
+                                          [example-individual example-individual2])))]
+        (recur 
+               (rest tests-in-random-order)
+               (filter #(<=
+                         (get (get % :errors) (first tests-in-random-order))
+                         best-ind-err)
+                       candidates-left)))))))
+       
 (defn crossover
   "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
   Returns child program. Checks to see if both parent progams are empty and if so filters out
