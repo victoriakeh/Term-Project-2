@@ -327,31 +327,33 @@
 
 (defn get-error
   [program test-case]
+  ;(println test-case)
+  ;(println "HELLO")
   (let [correct-digit (nth digits-of-e test-case)
         program-digit (first (get (interpret-push-program program
                                                           (assoc empty-push-state
-                                                             :input {:in1 test-case}))) :integer)]
+                                                             :input {:in1 test-case})) :integer))]
     (if (nil? program-digit)
       10000
       (absolute-value (- correct-digit program-digit)))))
   
-(defn regression-error-function
-  "Takes an individual and evaluates it on some test cases. For each test case,
-  Checks to see if we have done all 21 test cases [-10, 10], an is so returns the
-  individual with errors set to the list of error values, and total-error set to
-  the result when addition is applied to the error value list. Otherwise, we test
-  the program of the individual on the input and add the error to the list of errors
-  and move on to the next test case by adding 1 to the current input."
-  [individual]
-  (loop [curr-input -10
-         errors (get individual :errors)]
-    (if (> curr-input 10)
-      {:program (get individual :program)
-       :errors errors
-       :total-error (apply + errors)}
-      (recur (+ curr-input 1)
-             (conj errors (get-error (get individual :program)
-                                     curr-input))))))
+;(defn regression-error-function
+;  "Takes an individual and evaluates it on some test cases. For each test case,
+;  Checks to see if we have done all 21 test cases [-10, 10], an is so returns the
+;  individual with errors set to the list of error values, and total-error set to
+;  the result when addition is applied to the error value list. Otherwise, we test
+;  the program of the individual on the input and add the error to the list of error;s
+;  and move on to the next test case by adding 1 to the current input."
+;  [individual]
+;  (loop [curr-input -10
+;         errors (get individual :errors)]
+;    (if (> curr-input 10)
+;      {:program (get individual :program)
+;       :errors errors
+;       :total-error (apply + errors)}
+;      (recur (+ curr-input 1)
+;             (conj errors (get-error (get individual :program)
+;                                     curr-input))))))
 
 (defn number-e-error-function
   [individual]
@@ -373,7 +375,7 @@
   (let [individual {:program program
                     :errors []
                     :total-error 0}]
-    (regression-error-function individual)))
+    (number-e-error-function individual)))
 
 (defn choose-parent-selection
   [population test-cases]
@@ -462,7 +464,7 @@
   "Runs push-gp, giving it a map of arguments."
   [& args]
   (push-gp {:instructions instructions
-            :error-function regression-error-function
+            :error-function number-e-error-function
             :max-generations 500
             :population-size 200
             :max-initial-program-size 50}))
