@@ -3,9 +3,30 @@
 ;; Term Project Part 2
 ;; CPSCI 307 
 
+
 (ns push307.core
   (:gen-class)
   (:require [clojure.string :as string]))
+
+
+; An example individual in the population
+; Made of a map containing, at mimimum, a program, the errors for
+; the program, and a total error
+(def example-individual
+  {:program '(3 5 integer_* "hello" 4 "world" integer_-)
+   :errors [8 1 6 5 4 3 2 1 0 1]
+   :total-error 37})
+
+
+; An example individual in the population
+; Made of a map containing, at mimimum, a program, the errors for
+; the program, and a total error
+(def example-individual2
+  {:program '(hello thing exec_do*range "foo" 6 "foobar" integer_*)
+   :errors [1 1 1 1 1 1 1 1 1 1]
+   :total-error 10})
+
+
 
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
@@ -173,6 +194,9 @@
    :integer '()
    :float '()
    :input {}})
+
+(def digits-of-e
+  (map #(- (int %) 48) (seq "27182818284590452353602874713526624977572470936999595749669676277240766303535475945713821785251664274274663919320030599218174135966290435729003342952605956307381323286279434907632338298807531952510190115738341879307021540891499348841675092447614606680822648001684774118537423454424371075390777449920695517027618386062613313845830007520449338265602976067371132007093287091274437470472306969772093101416928368190255151086574637721112523897844250569536967707854499699679468644549059879316368892300987931277361782154249992295763514822082698951936680331825288693984964651058209392398294887933203625094431173012381970684161403970198376793206832823764648042953118023287825098194558153017567173613320698112509961818815930416903515988885193458072738667385894228792284998920868058257492796104841984443634632449684875602336248270419786232090021609902353043699418491463140934317381436405462531520961836908887070167683964243781405927145635490613031072085103837505101157477041718986106873969655212671546889570350354")))
 
 (defn push-to-stack
   "Takes a push state, stack name, and item then pushes item onto stack
@@ -369,6 +393,24 @@
   (let [selected-individuals (into [] (take 6 (repeatedly #(rand-nth population))))]
     (apply min-key :total-error selected-individuals)))
 
+(defn lexicase-selection
+  [population tests]
+  (let [tests-in-random-order (shuffle tests)]
+    (loop [tests-in-random-order tests-in-random-order
+           candidates-left population]
+      (if (= (count tests-in-random-order) 1)
+        (rand-nth candidates-left)
+      (let [best-ind-err (apply min
+                                (map #(nth % (first tests-in-random-order))
+                                     (map #(get % :errors)
+                                          [example-individual example-individual2])))]
+        (recur 
+               (rest tests-in-random-order)
+               (filter #(<=
+                         (get (get % :errors) (first tests-in-random-order))
+                         best-ind-err)
+                       candidates-left)))))))
+       
 (defn crossover
   "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
   Returns child program. Checks to see if both parent progams are empty and if so filters out
@@ -429,27 +471,34 @@
     (* -1 number)
     number))
 
-(defn target-function
-  [input]
-  (+ input input))
+
+;(defn get-error
+ ; "Takes a program and an input value for the function. Computes the value we
+ ; want from the target function as well as the value we get from the program
+ ; we are evaluating by getting the top value from the integer stack of the
+;  end state. Then, if the program returned nothing, we assign it an error value
+  ;of 10000, otherwise its error value is the absolute value of the value we want minus
+ ; the value we got and we return that value."
+  ;[program input]
+  ;(let [target-value (target-function input)
+   ;     program-value (first (get (interpret-push-program program
+   ;                                          (assoc empty-push-state
+    ;                                                :input {:in1 input}))
+   ;                               :integer))]
+    ;(if (nil? program-value)
+    ;  10000
+    ;  (absolute-value (- target-value  program-value)))))      
 
 (defn get-error
-  "Takes a program and an input value for the function. Computes the value we
-  want from the target function as well as the value we get from the program
-  we are evaluating by getting the top value from the integer stack of the
-  end state. Then, if the program returned nothing, we assign it an error value
-  of 10000, otherwise its error value is the absolute value of the value we want minus
-  the value we got and we return that value."
-  [program input]
-  (let [target-value (target-function input)
-        program-value (first (get (interpret-push-program program
-                                             (assoc empty-push-state
-                                                    :input {:in1 input}))
-                                  :integer))]
-    (if (nil? program-value)
+  [program test-case]
+  (let [correct-digit (nth digits-of-e test-case)
+        program-digit (first (get (interpret-push-program program
+                                                          (assoc empty-push-state
+                                                             :input {:in1 test-case}))) :integer)]
+    (if (nil? program-digit)
       10000
-      (absolute-value (- target-value  program-value)))))      
-
+      (absolute-value (- correct-digit program-digit)))))
+  
 (defn regression-error-function
   "Takes an individual and evaluates it on some test cases. For each test case,
   Checks to see if we have done all 21 test cases [-10, 10], an is so returns the
@@ -468,6 +517,18 @@
              (conj errors (get-error (get individual :program)
                                      curr-input))))))
 
+(defn number-e-error-function
+  [individual]
+  (loop [curr-test 0
+         errors (get individual :errors)]
+    (if (> curr-test 100)
+      {:program (get individual :program)
+       :errors errors
+       :total-error (apply + errors)}
+      (recur (+ curr-test 1)
+             (conj errors (get-error (get individual :program)
+                                       curr-test))))))
+
 (defn make-individual-from-program
   "Takes a program. Returns an individual with the program set to :program, and the errors
   vector with the associated error values that we get from our regression-error-function as well
@@ -478,29 +539,40 @@
                     :total-error 0}]
     (regression-error-function individual)))
 
+(defn choose-parent-selection
+  [population test-cases]
+  (let [prob (+ (rand-int 100) 1)]
+    (cond
+      (<= prob 50)
+      (lexicase-selection population test-cases)
+      (> prob 50)
+      (tournament-selection population))))
+
 (defn select-and-vary
   "Takes a population. Selects parent(s) from population and varies them, returning
   a child individual. Assign a random probabilty and if by a 50% chance crossover if chosen,
   choose two parents using tournament selection and return the resulting individual. If by a
   25% chance we get  uniform-addition, do that and again 25% to uniform-deletion. Each returning
   the resulting individual if chosen."
-  [population]
+  [population test-cases]
   (let [prob-genetic-op (+ (rand 100) 1)]
     (cond (<= prob-genetic-op 50)
-          (make-individual-from-program (crossover (get (get (tournament-selection population)
+
+          (make-individual-from-program (crossover (get (get (choose-parent-selection population test-cases)
                                                              :program)
                                                         :genome)
-                                                   (get (get (tournament-selection population)
+                                                   (get (get (choose-parent-selection population test-cases)
                                                              :program)
                                                         :genome)))
           (<= prob-genetic-op 75)
-          (make-individual-from-program (uniform-addition (get (get (tournament-selection population)
+          (make-individual-from-program (uniform-addition (get (get (choose-parent-selection population test-cases)
                                                                     :program)
                                                                :genome)))
           :else
-          (make-individual-from-program (uniform-deletion (get (get (tournament-selection population)
+          (make-individual-from-program (uniform-deletion (get (get (choose-parent-selection population test-cases)
                                                                     :program)
                                                                :genome))))))
+
 
 (defn report
   "Takes the population and the generation number. Reports information on the population
@@ -543,14 +615,16 @@
   (let [original-population (take population-size
                                   (repeatedly #(make-individual-from-program (make-random-push-program
                                                                               instructions
-                                                                              max-initial-program-size))))]
+                                                                              max-initial-program-size))))
+        test-cases (take 1000 (range))
+        ]
     (loop [curr-population original-population
            curr-generation 0]
       (report curr-population curr-generation)
       (cond (= (find-successful-program curr-population) :SUCCESS) :SUCCESS
             (= curr-generation max-generations) nil
             :else (recur (take population-size
-                               (repeatedly #(select-and-vary curr-population)))
+                               (repeatedly #(select-and-vary curr-population test-cases)))
                          (+ curr-generation 1))))))
 
 ;;;;;;;;;;
