@@ -4,7 +4,8 @@
 ;; CPSCI 307 
 
 (ns push307.core
-  (:gen-class))
+  (:gen-class)
+  (:require [clojure.string :as string]))
 
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
@@ -24,8 +25,6 @@
 ;;;;;;;;;;
 ;; Plush
 
-(ns clojush.translate
-  (:require [clojure.string :as string]))
 
 (def instruction-parentheses
   '{exec_dup 1
@@ -331,8 +330,8 @@
   exec to start and evaluates from there. Continues until the exec stack is empty.
   Returns the state of the stacks after the program finishes executing, otherwise it interprets
   the next step of the program."
-  [program start-state]
-  (loop [curr-state (assoc start-state :exec program)]
+  [genome start-state]
+  (loop [curr-state (assoc start-state :exec (translate-plush-genome-to-push-program genome))]
     (if (empty-stack? curr-state :exec)
       curr-state
       (recur (interpret-one-step curr-state)))))
@@ -348,15 +347,17 @@
   the new program and otherwise decrements the number of times we can add a new
   instruction and adds a new instruction to the progam and loop again."
   [instructions max-initial-program-size]
-  (let [newprogram '()
+  (let [genome {}
+        newprogram '()
         program-size (rand-int (+ max-initial-program-size 1))]
     (loop [add_instructions program-size
            newprogram newprogram
            instructions instructions]
       (if (= add_instructions 0)
-        newprogram
+        (assoc genome :genome newprogram)
         (recur (- add_instructions 1)
-               (conj newprogram (rand-nth instructions))
+               (conj newprogram {:instruction (rand-nth instructions)
+                                 :close (rand-int 4)})
                instructions)))))
 
 (defn tournament-selection
@@ -376,9 +377,9 @@
   the other program) and then reverses the resulting program so it is returned in the
   correct order (not backwards). Otherwise, continues to build the child program through the 50%
   chance of the instruction being taken from parent A or parent B."
-  [prog-a prog-b]
-  (loop [A prog-a
-         B prog-b
+  [genome-a genome-b]
+  (loop [A genome-a
+         B genome-b
          child '()]
     (if (and (empty? A) (empty? B))
       (filter #(not= % nil) (reverse child))
@@ -396,27 +397,27 @@
   Otherwise, if no instruction is added to the end, we reverse and return. If it is not empty, we
   check by the 5% chance to see if we add a random instruction in addition to instruction from the
   parent that we add, otherwise we just add that parent instruction and move on to the next one."
-  [prog]
-  (loop [prog prog
-         curr (first prog)
-         new-prog '()]
-    (if (empty? prog)
+  [genome]
+  (loop [genome genome
+         curr (first genome)
+         new-genome '()]
+    (if (empty? genome)
       (if (= (rand-int 20) 0)
-        (reverse (conj new-prog (rand-nth instructions)))
-        (reverse new-prog))
-      (recur (rest prog)
-             (first (rest prog))
+        (reverse (conj new-genome (rand-nth instructions)))
+        (reverse new-genome))
+      (recur (rest genome)
+             (first (rest genome))
              (if (= (rand-int 20) 0)
-               (conj (conj new-prog
+               (conj (conj new-genome
                            (rand-nth instructions)) curr)
-               (conj new-prog curr))))))
+               (conj new-genome curr))))))
 
 (defn uniform-deletion
   "Takes a progam. Randomly deletes instructions from program at a 5% rate.
   This means that there is a 95% chance the instruction will stay.
   Returns child program."
-  [prog]
-  (random-sample 0.95 prog))
+  [genome]
+  (random-sample 0.95 genome))
 
 
 (defn absolute-value
@@ -486,14 +487,20 @@
   [population]
   (let [prob-genetic-op (+ (rand 100) 1)]
     (cond (<= prob-genetic-op 50)
-          (make-individual-from-program (crossover (get (tournament-selection population) :program)
-                                                   (get (tournament-selection population) :program)))
+          (make-individual-from-program (crossover (get (get (tournament-selection population)
+                                                             :program)
+                                                        :genome)
+                                                   (get (get (tournament-selection population)
+                                                             :program)
+                                                        :genome)))
           (<= prob-genetic-op 75)
-          (make-individual-from-program (uniform-addition (get (tournament-selection population)
-                                                               :program)))
+          (make-individual-from-program (uniform-addition (get (get (tournament-selection population)
+                                                                    :program)
+                                                               :genome)))
           :else
-          (make-individual-from-program (uniform-deletion (get (tournament-selection population)
-                                                               :program))))))
+          (make-individual-from-program (uniform-deletion (get (get (tournament-selection population)
+                                                                    :program)
+                                                               :genome))))))
 
 (defn report
   "Takes the population and the generation number. Reports information on the population
@@ -506,8 +513,8 @@
   (println "               Report for Generation" generation)
   (println "-------------------------------------------------------")
   (let [best-program (apply min-key :total-error (into [] population))]
-    (println "Best program:" (get best-program :program))
-    (println "Best program size:" (count (get best-program :program)))
+    (println "Best program:" (translate-plush-genome-to-push-program (get best-program :program)))
+    (println "Best program size:" (count (get (get best-program :program) :genome)))
     (println "Best total error:" (get best-program :total-error))
     (println "Best errors:" (get best-program :errors))))
 
