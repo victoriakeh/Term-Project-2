@@ -1,9 +1,12 @@
 ;; Oliver Keh
 ;; Victoria Slack
-;; CPSCI 307
+;; Term Project Part 2
+;; CPSCI 307 
+
 
 (ns push307.core
-  (:gen-class))
+  (:gen-class)
+  (:require [clojure.string :as string]))
 
 
 ; An example individual in the population
@@ -41,12 +44,155 @@
    ))
 
 ;;;;;;;;;;
+;; Plush
+
+
+(def instruction-parentheses
+  '{exec_dup 1
+   exec_if 2})
+
+(defn lookup-instruction-paren-groups
+  [ins]
+  (let [ins-req (get instruction-parentheses ins)]
+    (cond
+      ins-req ins-req
+      :else 0)))
+
+(defn open-close-sequence-to-list
+  [sequence]
+  (cond (not (seq? sequence)) sequence
+        (empty? sequence) ()
+        :else (let [opens (count (filter #(= :open %) sequence))
+                    closes (count (filter #(= :close %) sequence))]
+                (assert (= opens closes)
+                        (str "open-close sequence must have equal numbers of :open and :close; this one does not:\n" sequence))
+                (let [s (str sequence)
+                      l (read-string (string/replace (string/replace s ":open" " ( ") ":close" " ) "))]
+                  ;; there'll be an extra ( ) around l, which we keep if the number of read things is >1
+                  (if (= (count l) 1)
+                    (first l)
+                    l)))))
+
+(defn delete-prev-paren-pair
+  "Deletes the last closed paren pair from prog, which may be a partial program."
+  [prog]
+  (loop [reversed-prog (reverse prog)
+         new-prog []
+         number-close-parens 0
+         found-first-close false]
+    (cond
+      ; Check if reversed-prog is empty, in which case we are done
+      (empty? reversed-prog) (vec (reverse new-prog))
+      ; Check if done, which is if we've found the first :close, the paren-stack is empty, and the first item in reversed-prog is :open
+      (and found-first-close
+           (zero? number-close-parens)
+           (= :open (first reversed-prog))) (vec (reverse (concat new-prog (rest reversed-prog))))
+      ; Check if looking for the correct :open but found an :open for a different paren
+      (and found-first-close
+           (< 0 number-close-parens)
+           (= :open (first reversed-prog))) (recur (rest reversed-prog)
+                                                   (conj new-prog (first reversed-prog))
+                                                   (dec number-close-parens)
+                                                   found-first-close)
+      ; Check if looking for correct :open but found another :close
+      (and found-first-close
+           (= :close (first reversed-prog))) (recur (rest reversed-prog)
+                                                    (conj new-prog (first reversed-prog))
+                                                    (inc number-close-parens)
+                                                    found-first-close)
+      ; Check if just found first :close. In which case skip it and set the found-first-close flag
+      (and (not found-first-close)
+           (= :close (first reversed-prog))) (recur (rest reversed-prog)
+                                                    new-prog
+                                                    0
+                                                    true)
+      ; Otherwise, just put the item onto new-prog and keep looking with same other variables
+      :else (recur (rest reversed-prog)
+                   (conj new-prog (first reversed-prog))
+                   number-close-parens
+                   found-first-close))))
+
+(defn translate-plush-genome-to-push-program
+  "Takes as input an individual (or map) containing a Plush genome (:genome)
+   and translates it to the correct Push program with
+   balanced parens. The linear Plush genome is made up of a list of instruction
+   maps, each including an :instruction key as well as other epigenetic marker
+   keys. As the linear Plush genome is traversed, each instruction that requires
+   parens will push :close and/or :close-open onto the paren-stack, and will
+   also put an open paren after it in the program. For example, an instruction
+   that requires 3 paren groupings will push :close, then :close-open, then :close-open.
+   When a positive number is encountered in the :close key of the
+   instruction map, it is set to num-parens-here during the next recur. This
+   indicates the number of parens to put here, if need is indicated on the
+   paren-stack. If the top item of the paren-stack is :close, a close paren
+   will be inserted. If the top item is :close-open, a close paren followed by
+   an open paren will be inserted.
+   If the end of the program is reached but parens are still needed (as indicated by
+   the paren-stack), parens are added until the paren-stack is empty.
+   Instruction maps that have :silence set to true will be ignored entirely."
+  [{:keys [genome program]}]
+  (if program
+    program
+    (loop [prog [] ; The Push program incrementally being built
+           gn genome ; The linear Plush genome, where items will be popped off the front. Each item is a map containing at least the key :instruction, and unless the program is flat, also :close
+           num-parens-here 0 ; The number of parens that still need to be added at this location.
+           paren-stack '()] ; Whenever an instruction requires parens grouping, it will push either :close or :close-open on this stack. This will indicate what to insert in the program the next time a paren is indicated by the :close key in the instruction map.
+      (cond
+                                        ; Check if need to add close parens here
+        (< 0 num-parens-here) (recur (cond
+                                       (= (first paren-stack) :close) (conj prog :close)
+                                       (= (first paren-stack) :close-open) (conj (conj prog :close) :open)
+                                       :else prog) ; If paren-stack is empty, we won't put any parens in even though the :close epigenetic marker indicated to do so
+                                     gn
+                                     (dec num-parens-here)
+                                     (rest paren-stack))
+                                        ; Check if at end of program but still need to add parens
+        (and (empty? gn)
+             (not (empty? paren-stack))) (recur prog
+                                                gn
+                                                (count paren-stack)
+                                                paren-stack)
+                                        ; Check if done
+        (empty? gn) (open-close-sequence-to-list (apply list prog))
+                                        ; Check for no-oped instruction. This instruction will be replaced by exec_noop, but will still have effects like :close count
+        (= (:silent (first gn)) :no-op) (recur (conj prog 'exec_noop)
+                                               (rest gn)
+                                               (get (first gn) :close 0)
+                                               paren-stack)
+                                        ; Check for silenced instruction
+        (get (first gn) :silent false) (recur prog
+                                              (rest gn)
+                                              num-parens-here
+                                              paren-stack)
+                                        ; If here, ready for next instruction
+        :else (let [number-paren-groups (lookup-instruction-paren-groups (:instruction (first gn)))
+                    new-paren-stack (if (>= 0 number-paren-groups)
+                                      paren-stack
+                                      (concat (repeat (dec number-paren-groups) :close-open)
+                                              '(:close)
+                                              paren-stack))]
+                (if (= 'noop_delete_prev_paren_pair (:instruction (first gn)))
+                  (recur (delete-prev-paren-pair prog)
+                         (rest gn)
+                         (get (first gn) :close 0)
+                         new-paren-stack)
+                  (recur (if (= 'noop_open_paren (:instruction (first gn)))
+                           (conj prog :open)
+                           (if (>= 0 number-paren-groups)
+                             (conj prog (:instruction (first gn)))
+                             (conj (conj prog (:instruction (first gn))) :open)))
+                         (rest gn)
+                         (get (first gn) :close 0) ; The number of close parens to put after this instruction; if :close isn't in instruction map, default to zero
+                         new-paren-stack)))))))
+
+
+;;;;;;;;;;
 ;; Utilities
 
 (def empty-push-state
   {:exec '()
    :integer '()
-   :string '()
+   :float '()
    :input {}})
 
 (def digits-of-e
@@ -58,7 +204,7 @@
   of newstack and associates the new stack with the push state."
   [state stack item]
   (let [newstack (conj (get state stack) item)]
-  (assoc state stack newstack)))
+    (assoc state stack newstack)))
 
 (defn pop-stack
   "Takes a push state and stack name and removes top item of stack,
@@ -163,6 +309,17 @@
 ;;;;;;;;;;
 ;; Interpreter
 
+(defn interpret-parens
+  [push-state parens]
+  (loop [curr-state push-state
+         parens (reverse parens)
+         curr-instruction (first parens)]
+    (if (= curr-instruction nil)
+      curr-state
+      (recur (push-to-stack curr-state :exec curr-instruction)
+             (rest parens)
+             (first (rest parens))))))
+
 (defn interpret-one-step
   "Helper function for interpret-push-program.
   Takes a Push state and executes the next instruction on the exec stack
@@ -171,14 +328,23 @@
   integer stack correct stack and if it is a string, pushes it to the string stack.
   Also pops that element off the exec stack returns the new Push state."
   [push-state]
-  (let [curr (eval (first (get push-state :exec)))]
-    (cond (integer? curr) (push-to-stack (pop-stack push-state :exec)
-                                         :integer
+  (let [gene (first (get push-state :exec))
+        curr (if (list? gene)
+               (interpret-parens (pop-stack push-state :exec) gene)
+               (eval (first (get push-state :exec))))]
+    (println curr)
+    (if (map? curr)
+      curr
+      (cond (float? curr) (push-to-stack (pop-stack push-state :exec)
+                                         :float
                                          curr)
-          (string? curr) (push-to-stack (pop-stack push-state :exec)
-                                        :string
-                                        curr)
-          :else (curr (pop-stack push-state :exec)))))
+            (integer? curr) (push-to-stack (pop-stack push-state :exec)
+                                           :integer
+                                           curr)
+            (string? curr) (push-to-stack (pop-stack push-state :exec)
+                                          :string
+                                          curr)
+            :else (curr (pop-stack push-state :exec))))))
 
 
              
@@ -188,8 +354,8 @@
   exec to start and evaluates from there. Continues until the exec stack is empty.
   Returns the state of the stacks after the program finishes executing, otherwise it interprets
   the next step of the program."
-  [program start-state]
-  (loop [curr-state (assoc start-state :exec program)]
+  [genome start-state]
+  (loop [curr-state (assoc start-state :exec (translate-plush-genome-to-push-program genome))]
     (if (empty-stack? curr-state :exec)
       curr-state
       (recur (interpret-one-step curr-state)))))
@@ -205,15 +371,17 @@
   the new program and otherwise decrements the number of times we can add a new
   instruction and adds a new instruction to the progam and loop again."
   [instructions max-initial-program-size]
-  (let [newprogram '()
+  (let [genome {}
+        newprogram '()
         program-size (rand-int (+ max-initial-program-size 1))]
     (loop [add_instructions program-size
            newprogram newprogram
            instructions instructions]
       (if (= add_instructions 0)
-        newprogram
+        (assoc genome :genome newprogram)
         (recur (- add_instructions 1)
-               (conj newprogram (rand-nth instructions))
+               (conj newprogram {:instruction (rand-nth instructions)
+                                 :close (rand-int 4)})
                instructions)))))
 
 (defn tournament-selection
@@ -251,9 +419,9 @@
   the other program) and then reverses the resulting program so it is returned in the
   correct order (not backwards). Otherwise, continues to build the child program through the 50%
   chance of the instruction being taken from parent A or parent B."
-  [prog-a prog-b]
-  (loop [A prog-a
-         B prog-b
+  [genome-a genome-b]
+  (loop [A genome-a
+         B genome-b
          child '()]
     (if (and (empty? A) (empty? B))
       (filter #(not= % nil) (reverse child))
@@ -271,33 +439,28 @@
   Otherwise, if no instruction is added to the end, we reverse and return. If it is not empty, we
   check by the 5% chance to see if we add a random instruction in addition to instruction from the
   parent that we add, otherwise we just add that parent instruction and move on to the next one."
-  [prog]
-  (loop [prog prog
-         curr (first prog)
-         new-prog '()]
-    (if (empty? prog)
+  [genome]
+  (loop [genome genome
+         curr (first genome)
+         new-genome '()]
+    (if (empty? genome)
       (if (= (rand-int 20) 0)
-        (reverse (conj new-prog (rand-nth instructions)))
-        (reverse new-prog))
-      (recur (rest prog)
-             (first (rest prog))
+        (reverse (conj new-genome (rand-nth instructions)))
+        (reverse new-genome))
+      (recur (rest genome)
+             (first (rest genome))
              (if (= (rand-int 20) 0)
-               (conj (conj new-prog
+               (conj (conj new-genome
                            (rand-nth instructions)) curr)
-               (conj new-prog curr))))))
+               (conj new-genome curr))))))
 
 (defn uniform-deletion
   "Takes a progam. Randomly deletes instructions from program at a 5% rate.
   This means that there is a 95% chance the instruction will stay.
   Returns child program."
-  [prog]
-  (random-sample 0.95 prog))
+  [genome]
+  (random-sample 0.95 genome))
 
-(defn target-function
-  "Target function: f(x) = x^3 + x + 3
-  Takes an input value to the above function and returns f(input)."
-  [x]
-  (+ (* x x x) x 3))
 
 (defn absolute-value
   "Takes a number and checks to see if it is negative (below 0), and if so,
@@ -307,6 +470,7 @@
   (if (< number 0)
     (* -1 number)
     number))
+
 
 ;(defn get-error
  ; "Takes a program and an input value for the function. Computes the value we
@@ -395,14 +559,22 @@
   [population test-cases]
   (let [prob-genetic-op (+ (rand 100) 1)]
     (cond (<= prob-genetic-op 50)
-          (make-individual-from-program (crossover (get (choose-parent-selection population test-cases) :program)
-                                                   (get (choose-parent-selection  population test-cases) :program)))
+
+          (make-individual-from-program (crossover (get (get (choose-parent-selection population test-cases)
+                                                             :program)
+                                                        :genome)
+                                                   (get (get (choose-parent-selection population test-cases)
+                                                             :program)
+                                                        :genome)))
           (<= prob-genetic-op 75)
-          (make-individual-from-program (uniform-addition (get (choose-parent-selection population test-cases)
-                                                               :program)))
+          (make-individual-from-program (uniform-addition (get (get (choose-parent-selection population test-cases)
+                                                                    :program)
+                                                               :genome)))
           :else
-          (make-individual-from-program (uniform-deletion (get (choose-parent-selection population test-cases)
-                                                               :program))))))
+          (make-individual-from-program (uniform-deletion (get (get (choose-parent-selection population test-cases)
+                                                                    :program)
+                                                               :genome))))))
+
 
 (defn report
   "Takes the population and the generation number. Reports information on the population
@@ -415,8 +587,8 @@
   (println "               Report for Generation" generation)
   (println "-------------------------------------------------------")
   (let [best-program (apply min-key :total-error (into [] population))]
-    (println "Best program:" (get best-program :program))
-    (println "Best program size:" (count (get best-program :program)))
+    (println "Best program:" (translate-plush-genome-to-push-program (get best-program :program)))
+    (println "Best program size:" (count (get (get best-program :program) :genome)))
     (println "Best total error:" (get best-program :total-error))
     (println "Best errors:" (get best-program :errors))))
 
