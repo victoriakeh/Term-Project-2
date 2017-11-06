@@ -48,8 +48,7 @@
 
 
 (def instruction-parentheses
-  '{exec_dup 1
-   exec_if 2})
+  '{})
 
 (defn lookup-instruction-paren-groups
   [ins]
@@ -332,7 +331,6 @@
         curr (if (list? gene)
                (interpret-parens (pop-stack push-state :exec) gene)
                (eval (first (get push-state :exec))))]
-    (println curr)
     (if (map? curr)
       curr
       (cond (float? curr) (push-to-stack (pop-stack push-state :exec)
@@ -373,16 +371,22 @@
   [instructions max-initial-program-size]
   (let [genome {}
         newprogram '()
+        newgenome '()
         program-size (rand-int (+ max-initial-program-size 1))]
     (loop [add_instructions program-size
            newprogram newprogram
+           newgenome newgenome
            instructions instructions]
       (if (= add_instructions 0)
-        (assoc genome :genome newprogram)
-        (recur (- add_instructions 1)
-               (conj newprogram {:instruction (rand-nth instructions)
-                                 :close (rand-int 4)})
-               instructions)))))
+        (assoc (assoc genome :genome newgenome) :program newprogram)
+        (let [curr-instruction (rand-nth instructions)
+              curr-close (rand-int 4)]
+              
+          (recur (- add_instructions 1)
+                 (conj newprogram curr-instruction)
+                 (conj newgenome {:instruction curr-instruction
+                                  :close curr-close})
+                 instructions))))))
 
 (defn tournament-selection
   "Takes a population. Selects an individual from the population using a tournament.
@@ -410,6 +414,10 @@
                          (get (get % :errors) (first tests-in-random-order))
                          best-ind-err)
                        candidates-left)))))))
+
+(defn make-program-match-genome
+  [genome]
+  (loop [
        
 (defn crossover
   "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
