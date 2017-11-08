@@ -407,7 +407,7 @@
       (let [best-ind-err (apply min
                                 (map #(nth % (first tests-in-random-order))
                                      (map #(get % :errors)
-                                          [example-individual example-individual2])))]
+                                          population)))]
         (recur 
                (rest tests-in-random-order)
                (filter #(<=
