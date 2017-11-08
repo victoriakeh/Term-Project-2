@@ -22,7 +22,7 @@
 ; Made of a map containing, at mimimum, a program, the errors for
 ; the program, and a total error
 (def example-individual2
-  {:program '(hello thing exec_do*range "foo" 6 "foobar" integer_*)
+  {:program '(hello thing exec_do*range "foo" 6  integer_*)
    :errors [1 1 1 1 1 1 1 1 1 1]
    :total-error 10})
 
