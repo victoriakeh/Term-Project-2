@@ -513,8 +513,6 @@
 
 (defn get-error
   [program test-case]
-  ;(println test-case)
-  ;(println "HELLO")
   (let [correct-digit (nth digits-of-e test-case)
         program-digit (first (get (interpret-push-program program
                                                           (assoc empty-push-state
@@ -543,15 +541,16 @@
 
 (defn number-e-error-function
   [individual]
-  (loop [curr-test 0
-         errors (get individual :errors)]
-    (if (> curr-test 100)
-      {:program (get individual :program)
-       :errors errors
-       :total-error (apply + errors)}
-      (recur (+ curr-test 1)
-             (conj errors (get-error (get individual :program)
-                                       curr-test))))))
+  (let [test-cases (take 100 (shuffle (take 1000 (range))))]
+    (loop [counter 0
+           errors (get individual :errors)]
+      (if (> counter 99)
+        {:program (get individual :program)
+         :errors errors
+         :total-error (apply + errors)}
+        (recur (+ counter 1)
+               (conj errors (get-error (get individual :program)
+                                       (nth test-cases counter))))))))
 
 (defn make-individual-from-program
   "Takes a program. Returns an individual with the program set to :program, and the errors
@@ -640,7 +639,7 @@
                                   (repeatedly #(make-individual-from-program (make-random-push-program
                                                                               instructions
                                                                               max-initial-program-size))))
-        test-cases (take 1000 (range))
+        test-cases (take 100 (range))
         ]
     (loop [curr-population original-population
            curr-generation 0]
