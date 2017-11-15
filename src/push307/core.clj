@@ -284,8 +284,8 @@
       state
       (push-to-stack (push-to-stack (push-to-stack state
                                                    :exec 'exec_do*for)
-                                    :exec (- (absolute-value counter) 1)
-                     :exec parens)))))
+                                    :exec (- (absolute-value counter) 1))
+                     :exec parens))))
       
 
 (defn in1
