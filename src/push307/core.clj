@@ -34,6 +34,7 @@
 
 (def instructions
   (list
+   'exec_do*count
    'in1
    'integer_+
    'integer_-
@@ -48,7 +49,7 @@
 
 
 (def instruction-parentheses
-  '{})
+  '{exec_do*count 1})
 
 (defn lookup-instruction-paren-groups
   [ins]
@@ -263,6 +264,15 @@
 ;;;;;;;;;;
 ;; Instructions
 
+(defn exec_do*count
+  [state]
+  (loop [counter 0
+         goal (peek-stack state :integer)
+         state state]
+    (if (= counter goal)
+      state
+      (recur 
+
 (defn in1
   "Takes a push state. Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map.
@@ -353,7 +363,9 @@
   Returns the state of the stacks after the program finishes executing, otherwise it interprets
   the next step of the program."
   [genome start-state]
-  (loop [curr-state (assoc start-state :exec (translate-plush-genome-to-push-program genome))]
+  (loop [curr-state (assoc start-state
+                           :exec
+                           (translate-plush-genome-to-push-program genome))]
     (if (empty-stack? curr-state :exec)
       curr-state
       (recur (interpret-one-step curr-state)))))
@@ -402,18 +414,20 @@
   (let [tests-in-random-order (shuffle tests)]
     (loop [tests-in-random-order tests-in-random-order
            candidates-left population]
-      (if (= (count tests-in-random-order) 1)
-        (rand-nth candidates-left)
-      (let [best-ind-err (apply min
-                                (map #(nth % (first tests-in-random-order))
-                                     (map #(get % :errors)
-                                          population)))]
-        (recur 
-               (rest tests-in-random-order)
-               (filter #(<=
-                         (get (get % :errors) (first tests-in-random-order))
-                         best-ind-err)
-                       candidates-left)))))))
+      (cond
+        (= (count candidates-left) 1) (first candidates-left)
+        (= (count tests-in-random-order) 1) (rand-nth candidates-left)
+        :else
+        (let [best-ind-err (apply min
+                                  (map #(nth % (first tests-in-random-order))
+                                       (map #(get % :errors)
+                                            population)))]
+          (recur 
+           (rest tests-in-random-order)
+           (filter #(>
+                     (get (get % :errors) (first tests-in-random-order))
+                     best-ind-err)
+                   candidates-left)))))))
 
 (defn make-program-from-genome
   [genome]
@@ -461,16 +475,20 @@
          new-genome '()]
     (if (empty? genome)
       (let [genome (if (= (rand-int 20) 0)
-                     (reverse (conj new-genome (rand-nth instructions)))
+                     (reverse (conj new-genome {:instruction (rand-nth instructions)
+                                                :close (rand-int 4)}))
                      (reverse new-genome))
             program (make-program-from-genome genome)]
+        (if (some #(= nil %) program)
+          (println program))
         {:genome genome
          :program program})
       (recur (rest genome)
              (first (rest genome))
              (if (= (rand-int 20) 0)
                (conj (conj new-genome
-                           (rand-nth instructions)) curr)
+                           {:instruction (rand-nth instructions)
+                            :close (rand-int 4)} curr))
                (conj new-genome curr))))))
 
 (defn uniform-deletion
@@ -658,6 +676,6 @@
   [& args]
   (push-gp {:instructions instructions
             :error-function number-e-error-function
-            :max-generations 500
+            :max-generations 50
             :population-size 200
             :max-initial-program-size 50}))
