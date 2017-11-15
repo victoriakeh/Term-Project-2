@@ -44,6 +44,7 @@
    'integer_-
    'integer_*
    'integer_%
+   'integer_power
    0
    1
    ))
@@ -328,6 +329,23 @@
       (pop-stack state :integer)
       (make-push-instruction state / [:integer :integer] :integer))))
 
+(defn powerfunc
+  [number power]
+  (loop [count power
+         number number
+         sum 1]
+    (if (= count 0)
+      sum
+      (recur (- count 1)
+             number
+             (* sum number)))))
+
+(defn integer_power
+  [state]
+  (let [number (second (get state :integer))
+        power (first (get state :integer))]
+    (pop-stack state :integer)
+    (make-push-instruction state powerfunc [:integer :integer] :integer)))
 
 ;;;;;;;;;;
 ;; Interpreter
