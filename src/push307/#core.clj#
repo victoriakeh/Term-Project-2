@@ -341,6 +341,7 @@
       (loop [count intpower
              number intnumber
              sum 1]
+        (println "IN POWERFUNC")
         (if (= count 0)
           (int sum)
           (recur (-' count 1)
