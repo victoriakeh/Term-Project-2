@@ -331,14 +331,21 @@
 
 (defn powerfunc
   [number power]
-  (loop [count power
-         number number
-         sum 1]
-    (if (= count 0)
-      sum
-      (recur (- count 1)
-             number
-             (* sum number)))))
+  (let [intnumber (int number)
+        intpower (int power)]
+    (cond
+      (= intnumber 0) 0
+      (= intnumber 1) 1
+      (= intpower 0) 1
+      :else
+      (loop [count intpower
+             number intnumber
+             sum 1]
+        (if (= count 0)
+          (int sum)
+          (recur (-' count 1)
+                 number
+                 (*' sum number)))))))
 
 (defn integer_power
   [state]
