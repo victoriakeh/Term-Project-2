@@ -47,8 +47,10 @@
    'integer_power
    'integer_mod
    'integer_abs
+   'integer_sqrt
    0
    1
+   2
    ))
 
 ;;;;;;;;;;
