@@ -44,7 +44,9 @@
    'integer_-
    'integer_*
    'integer_%
-;   'integer_power
+   'integer_power
+   'integer_mod
+   'integer_abs
    0
    1
    ))
@@ -329,10 +331,30 @@
       (pop-stack state :integer)
       (make-push-instruction state / [:integer :integer] :integer))))
 
+(defn return_int_sqrt
+  [value]
+  (let [funcvalue (absolute-value value)]
+    (bigint (Math/sqrt funcvalue))))
+
+(defn integer_sqrt
+  "Takes a push state. This instruction implements 'protected square root'.
+   The function takes an integer from the integer stack and first takes the
+   absolute value of it to ensure proper use of the function, then takes the
+   square root and returns the result onto the integer stack."
+  [state]
+  (make-push-instruction state return_int_sqrt [:integer] :integer))
+
+(defn integer_mod
+  "Takes a push state. This instruction implements the mod operation using the top
+   two integers and leaves the result on the integer stack. This instruction uses
+   make-push-instruction to define mod."
+  [state]
+  (make-push-instruction state mod [:integer :integer] :integer))
+
 (defn powerfunc
   [number power]
-  (let [intnumber (int number)
-        intpower (int power)]
+  (let [intnumber (mod number 10)
+        intpower (mod power 10)]
     (cond
       (= intnumber 0) 0
       (= intnumber 1) 1
@@ -342,7 +364,7 @@
              number intnumber
              sum 1]
         (if (= count 0)
-          (int sum)
+          (bigint sum)
           (recur (-' count 1)
                  number
                  (*' sum number)))))))
@@ -353,6 +375,13 @@
         power (first (get state :integer))]
     (pop-stack state :integer)
     (make-push-instruction state powerfunc [:integer :integer] :integer)))
+
+(defn integer_abs
+  "Takes a push state. This instruction returns the absolute value of the top
+   element on the integer stack. This instruction uses make-push-instruction
+   to define absolute value."
+  [state]
+  (make-push-instruction state absolute-value [:integer] :integer))
 
 ;;;;;;;;;;
 ;; Interpreter
