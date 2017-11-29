@@ -466,7 +466,6 @@
       (if (= add_instructions 0)
         (assoc genome :genome newgenome)
         (let [curr-instruction (rand-nth instructions)
-                                 rand-instruction)
               curr-close  (if (> 75 (rand-int 100))
                            0
                            (+ 1 (rand-int 2)))]
@@ -635,7 +634,7 @@
                                                    (get (get (choose-parent-selection population test-cases)
                                                              :program)
                                                         :genome)))
-          (<= prob-genetic-op 75)
+          (<= prob-genetic-op 90)
           (make-individual-from-program (uniform-addition (get (get (choose-parent-selection population test-cases)
                                                                     :program)
                                                                :genome)))
