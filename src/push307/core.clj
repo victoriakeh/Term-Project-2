@@ -437,11 +437,14 @@
                          (translate-plush-genome-to-push-program genome))]
     (loop [curr-state (if (list? (get get-state :exec))
                         get-state
-                        (list get-state))]
-     ; (println "HERE: " curr-state)
+                        (list get-state))
+           instructions-executed 0]
+      (if (> 1000 instructions-executed)
+        curr-state)
       (if (empty-stack? curr-state :exec)
         curr-state
-        (recur (interpret-one-step curr-state))))))
+        (recur (interpret-one-step curr-state)
+               (+ instructions-executed 1))))))
 
 
 ;;;;;;;;;;
@@ -656,6 +659,7 @@
     (println "Best program:" (translate-plush-genome-to-push-program (get best-program :program)))
     (println "Best program size:" (count (get (get best-program :program) :genome)))
     ;(println "Oldest gene in best program:" (get best-program :max-age))
+    (println "Best program genome:" (get (get best-program :program) :genome))
     (println "Best total error:" (get best-program :total-error))
     (println "Best errors:" (get best-program :errors))))
 
