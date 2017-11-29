@@ -664,8 +664,7 @@
   (let [best-program (apply min-key :total-error (into [] population))]
     (println "Best program:" (translate-plush-genome-to-push-program (get best-program :program)))
     (println "Best program size:" (count (get (get best-program :program) :genome)))
-    ;(println "Oldest gene in best program:" (get best-program :max-age))
-    (println "Best program genome:" (get (get best-program :program) :genome))
+    (println "Oldest gene in best program:" (get best-program :max-age))
     (println "Best total error:" (get best-program :total-error))
     (println "Best errors:" (get best-program :errors))))
 
