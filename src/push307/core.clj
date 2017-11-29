@@ -465,16 +465,11 @@
            instructions instructions]
       (if (= add_instructions 0)
         (assoc genome :genome newgenome)
-        (let [rand-instruction (rand-nth instructions)
-              curr-instruction (if (= 'exec_do*for rand-instruction)
-                                 (if (= 0 (rand-int 2))
-                                   rand-instruction
-                                   (rand-nth (rest instructions)))
+        (let [curr-instruction (rand-nth instructions)
                                  rand-instruction)
-              curr-close  (if (< 95 (rand-int 100))
+              curr-close  (if (> 75 (rand-int 100))
                            0
-                           (+ 1 (rand-int 4)))]
-              
+                           (+ 1 (rand-int 2)))]
           (recur (- add_instructions 1)
                  (conj newgenome {:instruction curr-instruction
                                   :close curr-close
@@ -484,7 +479,6 @@
 (defn age-fitness-pareto-selection
   [population]
   (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]))
-    
 
 
 (defn tournament-selection
@@ -558,7 +552,7 @@
     (if (empty? genome)
       (let [genome (if (= (rand-int 20) 0)
                      (reverse (conj new-genome {:instruction (rand-nth instructions)
-                                                :close (rand-int 4)
+                                                :close (rand-int 2)
                                                 :age 0}))
                      (reverse new-genome))]
         (inc-gene-age {:genome genome}))
@@ -567,9 +561,9 @@
              (if (= (rand-int 20) 0)
                (conj (conj new-genome
                            {:instruction (rand-nth instructions)
-                            :close (if (< 95 (rand-int 100))
+                            :close (if (> 80 (rand-int 100))
                                      0
-                                     (+ 1 (rand-int 4)))
+                                     (+ 1 (rand-int 2)))
                             :age 0} curr))
                (conj new-genome curr))))))
 
