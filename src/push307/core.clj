@@ -38,7 +38,7 @@
 
 (def instructions
   (list
- ;  'exec_do*for
+   'exec_do*for
    'in1
    'integer_+
    'integer_-
@@ -277,7 +277,10 @@
 
 (defn exec_do*for
   [state]
-  (let [counter (peek-stack state :integer)
+  (let [top-int (peek-stack state :integer)
+        counter (cond (= top-int :no-stack-item) 0
+                      (> top-int 50) 50
+                      :else top-int)
         parens (peek-stack state :exec)
         state state]
     (pop-stack state :integer)
@@ -411,9 +414,9 @@
                (eval (first (get push-state :exec))))]
     (if (map? curr)
       curr
-      (cond (float? curr) (push-to-stack (pop-stack push-state :exec)
-                                         :float
-                                         curr)
+      (cond ;(float? curr) (push-to-stack (pop-stack push-state :exec)
+            ;                             :float
+             ;                            curr)
             (integer? curr) (push-to-stack (pop-stack push-state :exec)
                                            :integer
                                            curr)
@@ -431,12 +434,16 @@
   Returns the state of the stacks after the program finishes executing, otherwise it interprets
   the next step of the program."
   [genome start-state]
-  (loop [curr-state (assoc start-state
-                           :exec
-                           (translate-plush-genome-to-push-program genome))]
-    (if (empty-stack? curr-state :exec)
-      curr-state
-      (recur (interpret-one-step curr-state)))))
+  (let [get-state (assoc start-state
+                         :exec
+                         (translate-plush-genome-to-push-program genome))]
+    (loop [curr-state (if (list? (get get-state :exec))
+                        get-state
+                        (list get-state))]
+     ; (println "HERE: " curr-state)
+      (if (empty-stack? curr-state :exec)
+        curr-state
+        (recur (interpret-one-step curr-state))))))
 
 
 ;;;;;;;;;;
@@ -450,20 +457,24 @@
   instruction and adds a new instruction to the progam and loop again."
   [instructions max-initial-program-size]
   (let [genome {}
-        newprogram '()
         newgenome '()
         program-size (rand-int (+ max-initial-program-size 1))]
     (loop [add_instructions program-size
-           newprogram newprogram
            newgenome newgenome
            instructions instructions]
       (if (= add_instructions 0)
-        (assoc (assoc genome :genome newgenome) :program newprogram)
-        (let [curr-instruction (rand-nth instructions)
-              curr-close (rand-int 4)]
+        (assoc genome :genome newgenome)
+        (let [rand-instruction (rand-nth instructions)
+              curr-instruction (if (= 'exec_do*for rand-instruction)
+                                 (if (= 0 (rand-int 2))
+                                   rand-instruction
+                                   (rand-nth (rest instructions)))
+                                 rand-instruction)
+              curr-close  (if (< 95 (rand-int 100))
+                           0
+                           (+ 1 (rand-int 4)))]
               
           (recur (- add_instructions 1)
-                 (conj newprogram curr-instruction)
                  (conj newgenome {:instruction curr-instruction
                                   :close curr-close})
                  instructions))))))
@@ -497,14 +508,14 @@
                      best-ind-err)
                    candidates-left)))))))
 
-(defn make-program-from-genome
-  [genome]
-  (loop [genome genome
-         newprogram '()]
-    (if (empty? genome)
-      (reverse newprogram)
-      (recur (rest genome)
-             (conj newprogram (get (first genome) :instruction))))))
+;(defn make-program-from-genome
+;  [genome]
+;  (loop [genome genome
+;         newprogram '()]
+;    (if (empty? genome)
+;      (reverse newprogram)
+;      (recur (rest genome)
+;             (conj newprogram (get (first genome) :instruction))))))
        
 (defn crossover
   "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
@@ -519,10 +530,7 @@
          B genome-b
          child '()]
     (if (and (empty? A) (empty? B))
-      (let [genome (filter #(not= % nil) (reverse child))
-            program (make-program-from-genome genome)]
-        {:genome genome
-         :program program})
+      {:genome (filter #(not= % nil) (reverse child))}
       (recur (rest A)
              (rest B)
              (if (= (rand-int 2) 0)
@@ -545,28 +553,23 @@
       (let [genome (if (= (rand-int 20) 0)
                      (reverse (conj new-genome {:instruction (rand-nth instructions)
                                                 :close (rand-int 4)}))
-                     (reverse new-genome))
-            program (make-program-from-genome genome)]
-        (if (some #(= nil %) program)
-          (println program))
-        {:genome genome
-         :program program})
+                     (reverse new-genome))]
+        {:genome genome})
       (recur (rest genome)
              (first (rest genome))
              (if (= (rand-int 20) 0)
                (conj (conj new-genome
                            {:instruction (rand-nth instructions)
-                            :close (rand-int 4)} curr))
+                            :close (if (< 95 (rand-int 100))
+                                     0
+                                     (+ 1 (rand-int 4)))} curr))
                (conj new-genome curr))))))
 
 (defn uniform-deletion
   "Takes a progam. Randomly deletes instructions from program at a 5% rate.  This means that there is a 95% chance the instruction will stay.
   Returns child program."
   [genome]
-  (let [genome (random-sample 0.95 genome)
-        program (make-program-from-genome genome)]
-    {:genome genome
-     :program program}))
+  {:genome (random-sample 0.95 genome)})
 
 
 
@@ -597,7 +600,7 @@
                                                              :input {:in1 test-case})) :integer))]
     (if (nil? program-digit)
       10000
-      (absolute-value (- correct-digit program-digit)))))
+      (absolute-value (- correct-digit (mod program-digit 10))))))
   
 ;(defn regression-error-function
 ;  "Takes an individual and evaluates it on some test cases. For each test case,
