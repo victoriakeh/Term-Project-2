@@ -416,16 +416,12 @@
                (eval (first (get push-state :exec))))]
     (if (map? curr)
       curr
-      (cond ;(float? curr) (push-to-stack (pop-stack push-state :exec)
-            ;                             :float
-             ;                            curr)
-            (integer? curr) (push-to-stack (pop-stack push-state :exec)
+      (if (integer? curr)
+        (push-to-stack (pop-stack push-state :exec)
                                            :integer
                                            curr)
-            (string? curr) (push-to-stack (pop-stack push-state :exec)
-                                          :string
-                                          curr)
-            :else (curr (pop-stack push-state :exec))))))
+
+        (curr (pop-stack push-state :exec))))))
 
 
              
@@ -460,7 +456,7 @@
   [instructions max-initial-program-size]
   (let [genome {}
         newgenome '()
-        program-size (rand-int (+ max-initial-program-size 1))]
+        program-size (+ (rand-int (+ max-initial-program-size 1)) 1)]
     (loop [add_instructions program-size
            newgenome newgenome
            instructions instructions]
@@ -478,8 +474,14 @@
               
           (recur (- add_instructions 1)
                  (conj newgenome {:instruction curr-instruction
-                                  :close curr-close})
+                                  :close curr-close
+                                  :age 1})
                  instructions))))))
+
+(defn age-fitness-pareto-selection
+  [population]
+  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]
+
 
 (defn tournament-selection
   "Takes a population. Selects an individual from the population using a tournament.
@@ -510,14 +512,12 @@
                      best-ind-err)
                    candidates-left)))))))
 
-;(defn make-program-from-genome
-;  [genome]
-;  (loop [genome genome
-;         newprogram '()]
-;    (if (empty? genome)
-;      (reverse newprogram)
-;      (recur (rest genome)
-;             (conj newprogram (get (first genome) :instruction))))))
+(defn inc-gene-age
+  [genome]
+  (let [genes (get genome :genome)]
+    (assoc genome
+           :genome
+           (map #(assoc % :age (inc (get % :age))) genes))))
        
 (defn crossover
   "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
@@ -532,7 +532,7 @@
          B genome-b
          child '()]
     (if (and (empty? A) (empty? B))
-      {:genome (filter #(not= % nil) (reverse child))}
+      (inc-gene-age {:genome (filter #(not= % nil) (reverse child))})
       (recur (rest A)
              (rest B)
              (if (= (rand-int 2) 0)
@@ -554,9 +554,10 @@
     (if (empty? genome)
       (let [genome (if (= (rand-int 20) 0)
                      (reverse (conj new-genome {:instruction (rand-nth instructions)
-                                                :close (rand-int 4)}))
+                                                :close (rand-int 4)
+                                                :age 0}))
                      (reverse new-genome))]
-        {:genome genome})
+        (inc-gene-age {:genome genome}))
       (recur (rest genome)
              (first (rest genome))
              (if (= (rand-int 20) 0)
@@ -564,35 +565,16 @@
                            {:instruction (rand-nth instructions)
                             :close (if (< 95 (rand-int 100))
                                      0
-                                     (+ 1 (rand-int 4)))} curr))
+                                     (+ 1 (rand-int 4)))
+                            :age 0} curr))
                (conj new-genome curr))))))
 
 (defn uniform-deletion
   "Takes a progam. Randomly deletes instructions from program at a 5% rate.  This means that there is a 95% chance the instruction will stay.
   Returns child program."
   [genome]
-  {:genome (random-sample 0.95 genome)})
-
-
-
-
-
-;(defn get-error
- ; "Takes a program and an input value for the function. Computes the value we
- ; want from the target function as well as the value we get from the program
- ; we are evaluating by getting the top value from the integer stack of the
-;  end state. Then, if the program returned nothing, we assign it an error value
-  ;of 10000, otherwise its error value is the absolute value of the value we want minus
- ; the value we got and we return that value."
-  ;[program input]
-  ;(let [target-value (target-function input)
-   ;     program-value (first (get (interpret-push-program program
-   ;                                          (assoc empty-push-state
-    ;                                                :input {:in1 input}))
-   ;                               :integer))]
-    ;(if (nil? program-value)
-    ;  10000
-    ;  (absolute-value (- target-value  program-value)))))      
+  (inc-gene-age {:genome (random-sample 0.95 genome)}))
+      
 
 (defn get-error
   [program test-case]
@@ -604,24 +586,6 @@
       10000
       (absolute-value (- correct-digit (mod program-digit 10))))))
   
-;(defn regression-error-function
-;  "Takes an individual and evaluates it on some test cases. For each test case,
-;  Checks to see if we have done all 21 test cases [-10, 10], an is so returns the
-;  individual with errors set to the list of error values, and total-error set to
-;  the result when addition is applied to the error value list. Otherwise, we test
-;  the program of the individual on the input and add the error to the list of error;s
-;  and move on to the next test case by adding 1 to the current input."
-;  [individual]
-;  (loop [curr-input -10
-;         errors (get individual :errors)]
-;    (if (> curr-input 10)
-;      {:program (get individual :program)
-;       :errors errors
-;       :total-error (apply + errors)}
-;      (recur (+ curr-input 1)
-;             (conj errors (get-error (get individual :program)
-;                                     curr-input))))))
-
 
 (defn number-e-error-function
   [individual]
@@ -629,9 +593,7 @@
     (loop [counter 0
            errors (get individual :errors)]
       (if (> counter 99)
-        {:program (get individual :program)
-         :errors errors
-         :total-error (apply + errors)}
+        (assoc (assoc individual :errors errors) :total-error (apply + errors))
         (recur (+ counter 1)
                (conj errors (get-error (get individual :program)
                                        (nth test-cases counter))))))))
@@ -641,9 +603,13 @@
   vector with the associated error values that we get from our regression-error-function as well
   as the total-error which we also get from the function and return the resulting individual."
   [program]
-  (let [individual {:program program
+  (let [max-age (if (empty? (get program :genome))
+                  0
+                  (get (apply max-key :age (get program :genome)) :age))
+        individual {:program program
                     :errors []
-                    :total-error 0}]
+                    :total-error 0
+                    :max-age max-age}]
     (number-e-error-function individual)))
 
 (defn choose-parent-selection
