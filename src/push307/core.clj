@@ -437,11 +437,14 @@
                          (translate-plush-genome-to-push-program genome))]
     (loop [curr-state (if (list? (get get-state :exec))
                         get-state
-                        (list get-state))]
-     ; (println "HERE: " curr-state)
+                        (list get-state))
+           instructions-executed 0]
+      (if (> 1000 instructions-executed)
+        curr-state)
       (if (empty-stack? curr-state :exec)
         curr-state
-        (recur (interpret-one-step curr-state))))))
+        (recur (interpret-one-step curr-state)
+               (+ instructions-executed 1))))))
 
 
 ;;;;;;;;;;
@@ -480,7 +483,8 @@
 
 (defn age-fitness-pareto-selection
   [population]
-  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]
+  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]))
+    
 
 
 (defn tournament-selection
@@ -661,6 +665,7 @@
     (println "Best program:" (translate-plush-genome-to-push-program (get best-program :program)))
     (println "Best program size:" (count (get (get best-program :program) :genome)))
     ;(println "Oldest gene in best program:" (get best-program :max-age))
+    (println "Best program genome:" (get (get best-program :program) :genome))
     (println "Best total error:" (get best-program :total-error))
     (println "Best errors:" (get best-program :errors))))
 
@@ -668,7 +673,6 @@
   "Takes a population. Applies the minimum function to the population's total-error to see if one
   produces a total-error of 0, meaning it has found a solution. If it does it returns :SUCCESS."
   [population]
-  (println population)
   (if (= (get (apply min-key :total-error population) :total-error) 0)
     :SUCCESS))
 
