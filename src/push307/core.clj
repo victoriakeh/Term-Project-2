@@ -439,12 +439,12 @@
                         get-state
                         (list get-state))
            instructions-executed 0]
-      (if (> 1000 instructions-executed)
-        curr-state)
-      (if (empty-stack? curr-state :exec)
+      (if (> instructions-executed 1000)
         curr-state
-        (recur (interpret-one-step curr-state)
-               (+ instructions-executed 1))))))
+        (if (empty-stack? curr-state :exec)
+          curr-state
+          (recur (interpret-one-step curr-state)
+                 (+ instructions-executed 1)))))))
 
 
 ;;;;;;;;;;
@@ -466,7 +466,6 @@
       (if (= add_instructions 0)
         (assoc genome :genome newgenome)
         (let [curr-instruction (rand-nth instructions)
-                                 rand-instruction)
               curr-close  (if (> 75 (rand-int 100))
                            0
                            (+ 1 (rand-int 2)))]
