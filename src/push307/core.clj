@@ -346,6 +346,10 @@
   (make-push-instruction state mod [:integer :integer] :integer))
 
 (defn powerfunc
+  "Takes two integers, a base and a power. To protect against values that are too large,
+   the function takes the modulus of 10 of both the base and the power. Then, it checks
+   if the base or power satisfy any of the rules of exponents, otherwise, it calculates
+   the appropriate value."
   [number power]
   (let [intnumber (mod number 10)
         intpower (mod power 10)]
@@ -368,10 +372,7 @@
    stack raised to the power of the second element on the integer stack. This
    instruction uses make-push-instruction to define the power function."
   [state]
-  (let [number (second (get state :integer))
-        power (first (get state :integer))]
-    (pop-stack state :integer)
-    (make-push-instruction state powerfunc [:integer :integer] :integer)))
+  (make-push-instruction state powerfunc [:integer :integer] :integer))
 
 (defn integer_abs
   "Takes a push state. This instruction returns the absolute value of the top
@@ -488,10 +489,14 @@
       
 
 (defn pareto-tournament-selection
+  "Takes a population. Selects an individual from the population using pareto dominance.
+   First, the function finds the pareto front by removing all of the individuals that
+   are dominated by other individuals from a total of 15 individuals chosen at random from the
+   population. Then one of the individuals from the pareto front is selected at random
+   to be a parent in the next generation."
   [population]
   (let [selected-individuals (into [] (take 5 (repeatedly #(rand-nth population))))]
     (rand-nth (remove #(find-dominance % selected-individuals) selected-individuals))))             
-
 
 (defn tournament-selection
   "Takes a population. Selects an individual from the population using a tournament.
@@ -644,17 +649,17 @@
   [population test-cases]
   (loop [prob (+ (rand-int 100) 1)
          selected-individual (cond
-                               (<= prob 0)
+                               (<= prob 33)
                                (lexicase-selection population test-cases)
-                               (> prob 1000)
+                               (<= prob 66)
                                (tournament-selection population)
                                :else (pareto-tournament-selection population))]
     (if (nil? selected-individual)
       (recur prob
              (cond
-                (<= prob 0)
+                (<= prob 33)
                 (lexicase-selection population test-cases)
-                (> prob 1000)
+                (<= prob 66)
                 (tournament-selection population)
                 :else (pareto-tournament-selection population)))
       selected-individual)))
