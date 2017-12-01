@@ -383,6 +383,9 @@
                  (*' sum number)))))))
 
 (defn integer_power
+  "Takes a push state. This instruction returns the top element of the integer
+   stack raised to the power of the second element on the integer stack. This
+   instruction uses make-push-instruction to define the power function."
   [state]
   (let [number (second (get state :integer))
         power (first (get state :integer))]
