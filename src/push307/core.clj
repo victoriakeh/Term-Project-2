@@ -17,6 +17,10 @@
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
 
+
+; All instructions are for integers or the exec stack in order to keep all calculations
+; as close to integer solutions as possible (because this is how you would solve the
+; problem if you were doing it by hand - i.e. no ratios or floats)
 (def instructions
   (list
    'exec_do*for
@@ -36,7 +40,7 @@
 
 ;;;;;;;;;;
 ;; Plush
-
+;; *** The below functions were implemented by Prof. Helmuth ***
 
 (def instruction-parentheses
   '{exec_do*for 1})
@@ -262,6 +266,12 @@
 ;; Instructions
 
 (defn exec_do*for
+  "Takes a state and reads the top number of the integer stack (if it exists). The counter is
+  then defined as either 50 if the top integer is greater than 50 or the top number of the
+  integer stack, which we pop. We also look at the parenthesized code which must follow
+  exec_do*for. If the counter has reached zero, we return the current state and if not,
+  we push another function call to the exec stack along with the counter - 1 and the code that
+  follows this function call. Returns that state."
   [state]
   (let [top-int (peek-stack state :integer)
         counter (cond (= top-int :no-stack-item) 0
@@ -332,9 +342,10 @@
 
 (defn integer_sqrt
   "Takes a push state. This instruction implements 'protected square root'.
-   The function takes an integer from the integer stack and first takes the
-   absolute value of it to ensure proper use of the function, then takes the
-   square root and returns the result onto the integer stack."
+   By using make-push-instruction , the function takes an integer from the
+  integer stack and first takes the absolute value of it to ensure proper
+  use of the function, then takes the square root and returns the result
+  onto the integer stack."
   [state]
   (make-push-instruction state return_int_sqrt [:integer] :integer))
 
@@ -349,7 +360,9 @@
   "Takes two integers, a base and a power. To protect against values that are too large,
    the function takes the modulus of 10 of both the base and the power. Then, it checks
    if the base or power satisfy any of the rules of exponents, otherwise, it calculates
-   the appropriate value."
+   the appropriate value by using a counter which is the power, and number, the base. Returns
+  the product when we have multplied the number the number of times indicated by the counter,
+  through a looping structure."
   [number power]
   (let [intnumber (mod number 10)
         intpower (mod power 10)]
@@ -360,24 +373,24 @@
       :else
       (loop [count intpower
              number intnumber
-             sum 1]
+             product 1]
         (if (= count 0)
-          (bigint sum)
+          (bigint product)
           (recur (-' count 1)
                  number
-                 (*' sum number)))))))
+                 (*' product number)))))))
 
 (defn integer_power
-  "Takes a push state. This instruction returns the top element of the integer
-   stack raised to the power of the second element on the integer stack. This
-   instruction uses make-push-instruction to define the power function."
+  "Takes a p(l)ush state. This instruction returns a stack with the top element of the integer
+   stack raised to the power of the second element on the integer stack. This instruction
+  uses make-push-instruction to define the power function."
   [state]
   (make-push-instruction state powerfunc [:integer :integer] :integer))
 
 (defn integer_abs
-  "Takes a push state. This instruction returns the absolute value of the top
-   element on the integer stack. This instruction uses make-push-instruction
-   to define absolute value."
+  "Takes a p(l)ush state. This instruction returns a stack with the absolute value of the top
+   element on the integer stack. This instruction uses make-push-instruction to define
+  absolute value."
   [state]
   (make-push-instruction state absolute-value [:integer] :integer))
 
@@ -385,6 +398,11 @@
 ;; Interpreter
 
 (defn interpret-parens
+  "Takes a p(l)ush-state and a code segment enclosed into parentheses. It then unwraps the code
+  inside the parentheses and pushes them onto the stack to be executed in the correct order.
+  We loop starting with the current state, the code block, and the first instruction in it. If
+  that instruction is nil, we are done and return the final state, otherwise we loop and push
+  the next instruction on the exec stack and remove it from parens."
   [push-state parens]
   (loop [curr-state push-state
          parens (reverse parens)
@@ -397,7 +415,7 @@
 
 (defn interpret-one-step
   "Helper function for interpret-push-program.
-  Takes a Push state and executes the next instruction on the exec stack
+  Takes a P(l)ush state and executes the next instruction on the exec stack
   by evaluating the first item on the exec stack and places the result on the
   appropriate stack, but if the next element is an integer, pushes it onto the
   integer stack correct stack and if it is a string, pushes it to the string stack.
@@ -443,10 +461,12 @@
 
 (defn make-random-push-program
   "Takes instruction set and a maximum initial progam size. Creates and
-  returns a new program. Picks the size of the program randomly between
-  1 and the max size. If you can't add any more instructions, it returns
-  the new program and otherwise decrements the number of times we can add a new
-  instruction and adds a new instruction to the progam and loop again."
+  returns a new genome. Picks the size of the program randomly between
+  1 and the max size and assigns close to be 75% of the time 0 and the other
+  25% either 1 or 2. Age always begins at 1, If you can't add any more
+  instructions/close/age, it returns the new genome and otherwise decrements
+  the number of times we can add a new instruction/close/age and adds a new
+  instruction/close/age to the genome and loop again."
   [instructions max-initial-program-size]
   (let [genome {}
         newgenome '()
@@ -489,13 +509,13 @@
       
 
 (defn pareto-tournament-selection
-  "Takes a population. Selects an individual from the population using pareto dominance.
+  "Takes a population. Selects a individual from the population using pareto dominance.
    First, the function finds the pareto front by removing all of the individuals that
    are dominated by other individuals from a total of 15 individuals chosen at random from the
    population. Then one of the individuals from the pareto front is selected at random
    to be a parent in the next generation."
   [population]
-  (let [selected-individuals (into [] (take 5 (repeatedly #(rand-nth population))))]
+  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]
     (rand-nth (remove #(find-dominance % selected-individuals) selected-individuals))))             
 
 (defn tournament-selection
@@ -511,8 +531,7 @@
   "This function takes a population and a list of test cases to be used
    for Lexicase Selection. The function returns an individual to be used
    as a parent in the next generation. The function randomly shuffles the
-   test cases in order to keep the system from memorizing the correct
-   answer. First, the function checks if there is only a single candidate
+   test cases. First, the function checks if there is only a single candidate
    left in the population, and, if true, it returns that candidate.
    Similarly, if there is only one test case left, a random candidate is
    chosen from the population to be returned. Otherwise, the function finds
@@ -549,13 +568,14 @@
            (map #(assoc % :age (inc (get % :age))) genes))))
        
 (defn crossover
-  "Takes to progarms. Crosses over two programs (not individuals) using uniform crossover.
-  Returns child program. Checks to see if both parent progams are empty and if so filters out
-  any instructions that are nil (which would happen if one program becomes empty before the other,
-  where in that case we would still have a 50% chance of including each instruction from the rest of
-  the other program) and then reverses the resulting program so it is returned in the
-  correct order (not backwards). Otherwise, continues to build the child program through the 50%
-  chance of the instruction being taken from parent A or parent B."
+  "Takes to genomes. Crosses over two genomes (not individuals) using uniform crossover.
+  Returns child genome. Checks to see if both parent genomes are empty and if so filters out
+  any genes that are nil (which would happen if one genome becomes empty before the other,
+  where in that case we would still have a 50% chance of including each gene from the rest of
+  the other genome) and then reverses the resulting genome so it is returned in the
+  correct order (not backwards) and increments the age of each gene because it is now a part
+  of the new population. Otherwise, continues to build the child genome through the 50%
+  chance of the gene being taken from parent A or parent B."
   [genome-a genome-b]
   (loop [A genome-a
          B genome-b
@@ -569,13 +589,14 @@
                (conj child (first B)))))))
 
 (defn uniform-addition
-  "Takes a program. Randomly adds new instructions before every instruction (and at the end of
-  the program) with a 5% probability of doing so. Loops through the parent program and
-  if the parent program is empty, and by the 5% chance we add an instruction, we add a random
-  instruction to the end of the child and return reversed (to the correct order) child program.
-  Otherwise, if no instruction is added to the end, we reverse and return. If it is not empty, we
-  check by the 5% chance to see if we add a random instruction in addition to instruction from the
-  parent that we add, otherwise we just add that parent instruction and move on to the next one."
+  "Takes a genome. Randomly adds new genes before every gene (and at the end of
+  the program) with a 5% probability of doing so. Loops through the parent genome and
+  if the parent genome is empty, and by the 5% chance we add an gene, we add a random
+  gene to the end of the child and return reversed (to the correct order) child genome
+  and increments the age of each gene because it is now a part of the new population.
+  Otherwise, if no gene is added to the end, we reverse and return. If it is not empty, we
+  check by the 5% chance to see if we add a random gene in addition to gene from the
+  parent that we add, otherwise we just add that parent gene and move on to the next one."
   [genome]
   (loop [genome genome
          curr (first genome)
@@ -599,8 +620,9 @@
                (conj new-genome curr))))))
 
 (defn uniform-deletion
-  "Takes a progam. Randomly deletes instructions from program at a 5% rate.  This means that there is a 95% chance the instruction will stay.
-  Returns child program."
+  "Takes a genome. Randomly deletes genes from genome at a 5% rate. This means that
+  there is a 95% chance the gene  will stay. Returns child genome and increments the
+  age of each gene because it is now a part of the new population."
   [genome]
   (inc-gene-age {:genome (random-sample 0.95 genome)}))
       
@@ -645,7 +667,10 @@
   "This function takes a population and a list of test cases. It returns
    an individual which will be used as a parent in the next generation.
    The function randomly chooses which parent selection method to use
-   to find the best parent to return."
+   to find the best parent to return. Loops until the parent selction method
+  chosen returns a valid individual (not nil). *** NOTE: By adjusting the
+  probabilities you can restrict selection to just one method or any
+  comibination of the three. ***"
   [population test-cases]
   (loop [prob (+ (rand-int 100) 1)
          selected-individual (cond
@@ -715,6 +740,11 @@
     :SUCCESS))
 
 (defn manage-population
+  "Takes a population and the maximum program size. Finds the worst error in the population, and
+  creates a new individual to add into the population. Loops through the population to find the
+  first program with the worst error and removes it and returns that, conjoined with the new
+  individual. Otherwise, it puts the current individual at the end of the populatio list to
+  continue looping."
   [population max-initial-program-size]
   (loop [population population
          worst-error (get (apply max-key :total-error population) :total-error)
@@ -766,6 +796,6 @@
   [& args]
   (push-gp {:instructions instructions
             :error-function number-e-error-function
-            :max-generations 50
-            :population-size 200
-            :max-initial-program-size 50}))
+            :max-generations 600
+            :population-size 250
+            :max-initial-program-size 80}))
