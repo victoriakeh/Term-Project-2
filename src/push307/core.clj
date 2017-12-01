@@ -13,25 +13,6 @@
    :integer '()
    :input {}})
 
-; An example individual in the population
-; Made of a map containing, at mimimum, a program, the errors for
-; the program, and a total error
-(def example-individual
-  {:program '(3 5 integer_* "hello" 4 "world" integer_-)
-   :errors [8 1 6 5 4 3 2 1 0 1]
-   :total-error 37})
-
-
-; An example individual in the population
-; Made of a map containing, at mimimum, a program, the errors for
-; the program, and a total error
-(def example-individual2
-  {:program '(hello thing exec_do*range "foo" 6 "foobar" integer_*)
-   :errors [1 1 1 1 1 1 1 1 1 1]
-   :total-error 10})
-
-
-
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
@@ -514,9 +495,8 @@
    population. Then one of the individuals from the pareto front is selected at random
    to be a parent in the next generation."
   [population]
-  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]
-    (remove #(find-dominance % selected-individuals) selected-individuals)))             
-
+  (let [selected-individuals (into [] (take 5 (repeatedly #(rand-nth population))))]
+    (rand-nth (remove #(find-dominance % selected-individuals) selected-individuals))))             
 
 (defn tournament-selection
   "Takes a population. Selects an individual from the population using a tournament.
@@ -736,10 +716,15 @@
 
 (defn manage-population
   [population max-initial-program-size]
-  (let [worst-ind (apply max-key :total-error population)
-        new-ind (make-individual-from-program (make-random-push-program instructions
+  (loop [population population
+         worst-error (get (apply max-key :total-error population) :total-error)
+         new-ind (make-individual-from-program (make-random-push-program instructions
                                                                         max-initial-program-size))]
-    (conj (remove #(= worst-ind %) population) new-ind)))
+    (if (= worst-error (get (first population) :total-error))
+      (conj (rest population) new-ind)
+      (recur (apply list (conj (vec (rest population)) (first population)))
+             worst-error
+             new-ind))))
 
 (defn push-gp
   "Main GP loop. Takes a map with the following values:
