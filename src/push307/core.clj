@@ -467,8 +467,14 @@
                  instructions))))))
 
 (defn find-dominance
-  "Takes 2 individuals from selected individuals in pareto-tournament-selection and
-  returns true if ind1 is dominant over ind2 and false if not."
+  "Takes an individual and a list of individuals from pareto-tournamet-selection.
+   Returns true if the individual is dominated by any of the other individuals in the
+   list on both the objectives (age and total error), otherwise returns false if the
+   individual is not dominated by any of the individuals in the list, indicating that
+   it will be on the Pareto front. An individual 'A' is dominated by an individual
+   'B' if, for every objective, 'B' performs as well as or better than 'A', and 'B'
+   performs better than 'A' on at least one objective. The function loops through all
+   of the individuals in the list until dominance is determined."
   [ind selected-individuals]
   (loop [selected-individuals selected-individuals
          ind-error (get ind :total-error)
@@ -486,8 +492,6 @@
                        ind-error
                        ind-age))))
               
-      
-
 (defn pareto-tournament-selection
   "Takes a population. Selects an individual from the population using pareto dominance.
    First, the function finds the pareto front by removing all of the individuals that
@@ -541,7 +545,8 @@
 
 (defn inc-gene-age
   "This function takes a genome as a parameter. It then increments the
-   age of each of the genes in the genome."
+   age of each of the genes in the genome and associates the genome
+   with the newly updated genome."
   [genome]
   (let [genes (get genome :genome)]
     (assoc genome
@@ -606,6 +611,12 @@
       
 
 (defn get-error
+  "Takes a program and a certain test case. The function finds the digit of e that
+   corresponds with the test case as well as the output of the program when the
+   test case is passed as input. If the program does not return an integer on the
+   integer stack (ie. the output was nil), a penalty of 10,000 is returned as the
+   error. Otherwise, the absolute value of the difference between the correct value of
+   the digit of e and the program output is returned as the error."
   [program test-case]
   (let [correct-digit (nth digits-of-e test-case)
         program-digit (first (get (interpret-push-program program
@@ -617,6 +628,12 @@
   
 
 (defn number-e-error-function
+  "Takes an individual. Randomly shuffles 1000 test cases and takes the first 100 to use for
+   comparison. The function loops through each of these test cases and compares the
+   output of the program to the appropriate digit of e and creates a list which, after
+   all of the comparisons have been done, is associated with the individual's :errors key
+   and the sum of those errors is associated with the individual's :total-error key.
+   Returns the individual."
   [individual]
   (let [test-cases (take 100 (shuffle (take 1000 (range))))]
     (loop [counter 0
