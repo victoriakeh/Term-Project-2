@@ -484,9 +484,32 @@
                                   :age 1})
                  instructions))))))
 
-(defn age-fitness-pareto-selection
+(defn find-dominance
+  "Takes 2 individuals from selected individuals in pareto-tournament-selection and
+  returns true if ind1 is dominant over ind2 and false if not."
+  [ind selected-individuals]
+  (loop [selected-individuals selected-individuals
+         ind-error (get ind :total-error)
+         ind-age (get ind :max-age)]
+    (cond (empty? selected-individuals) false
+          (and (and (>= ind-error
+                        (get (first selected-individuals) :total-error))
+                    (>= ind-age
+                        (get (first selected-individuals) :max-age)))
+               (or (> ind-error
+                      (get (first selected-individuals) :total-error))
+                   (> ind-age
+                      (get (first selected-individuals) :max-age)))) true
+          :else (recur (rest selected-individuals)
+                       ind-error
+                       ind-age))))
+              
+      
+
+(defn pareto-tournament-selection
   [population]
-  (let [selected-individuals (into [] (take 15 (repeatedly #(rand-nth population))))]))
+  (let [selected-individuals (into [] (take 5 (repeatedly #(rand-nth population))))]
+    (remove #(find-dominance % selected-individuals) selected-individuals)))             
 
 
 (defn tournament-selection
@@ -638,12 +661,22 @@
    The function randomly chooses which parent selection method to use
    to find the best parent to return."
   [population test-cases]
-  (let [prob (+ (rand-int 100) 1)]
-    (cond
-      (<= prob 50)
-      (lexicase-selection population test-cases)
-      (> prob 50)
-      (tournament-selection population))))
+  (loop [prob (+ (rand-int 100) 1)
+         selected-individual (cond
+                               (<= prob 0)
+                               (lexicase-selection population test-cases)
+                               (> prob 1000)
+                               (tournament-selection population)
+                               :else (pareto-tournament-selection population))]
+    (if (nil? selected-individual)
+      (recur prob
+             (cond
+                (<= prob 0)
+                (lexicase-selection population test-cases)
+                (> prob 1000)
+                (tournament-selection population)
+                :else (pareto-tournament-selection population)))
+      selected-individual)))
 
 (defn select-and-vary
   "Takes a population. Selects parent(s) from population and varies them, returning
@@ -695,6 +728,13 @@
   (if (= (get (apply min-key :total-error population) :total-error) 0)
     :SUCCESS))
 
+(defn manage-population
+  [population max-initial-program-size]
+  (let [worst-ind (apply max-key :total-error population)
+        new-ind (make-individual-from-program (make-random-push-program instructions
+                                                                        max-initial-program-size))]
+    (conj (remove #(= worst-ind %) population) new-ind)))
+
 (defn push-gp
   "Main GP loop. Takes a map with the following values:
      - populatioqn-size
@@ -721,8 +761,10 @@
       (report curr-population curr-generation)
       (cond (= (find-successful-program curr-population) :SUCCESS) :SUCCESS
             (= curr-generation max-generations) nil
-            :else (recur (take population-size
-                               (repeatedly #(select-and-vary curr-population test-cases)))
+            :else (recur (manage-population (take population-size
+                                                  (repeatedly #(select-and-vary curr-population
+                                                                                test-cases)))
+                                            max-initial-program-size)
                          (+ curr-generation 1))))))
 
 ;;;;;;;;;;
