@@ -554,10 +554,10 @@
         (let [best-ind-err (apply min
                                   (map #(nth % (first tests-in-random-order))
                                        (map #(get % :errors)
-                                            population)))]
+                                            candidates-left)))]
           (recur 
            (rest tests-in-random-order)
-           (filter #(>
+           (remove #(>
                      (get (get % :errors) (first tests-in-random-order))
                      best-ind-err)
                    candidates-left)))))))
